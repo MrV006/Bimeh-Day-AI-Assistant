@@ -1,6 +1,7 @@
 import React, { useState, DragEvent, useRef, useMemo } from 'react';
 import { KnowledgeSource, Task, ChatSession, ModelId } from '../types';
-import { Plus, FileText, Trash2, CheckCircle, Database, XCircle, ShieldCheck, UploadCloud, Loader, MessageSquarePlus, X, Search, ListTodo, Calendar, Clock, Square, CheckSquare, ArrowUpDown, History, ArchiveRestore, Eraser, MessageSquare, Globe, Link, Github, Phone, Key, Cpu, Check, ChevronDown } from './Icons';
+import { AVAILABLE_MODELS } from '../services/geminiService';
+import { Plus, FileText, Trash2, CheckCircle, Database, XCircle, ShieldCheck, UploadCloud, Loader, MessageSquarePlus, X, Search, ListTodo, Calendar, Clock, Square, CheckSquare, ArrowUpDown, History, ArchiveRestore, Eraser, MessageSquare, Globe, Link, Github, Phone, Key, Cpu, Check, ChevronDown, Zap, Brain, Activity } from './Icons';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
@@ -26,6 +27,7 @@ interface SidebarProps {
   onDeleteChat: (id: string) => void;
   onClearHistory: () => void;
   onClearCache: () => void;
+  onOpenSettings: () => void;
 }
 
 type Tab = 'sources' | 'tasks' | 'history';
@@ -50,7 +52,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onLoadChat,
   onDeleteChat,
   onClearHistory,
-  onClearCache
+  onClearCache,
+  onOpenSettings
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('sources');
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
@@ -317,6 +320,11 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
+  const getActiveModelName = () => {
+    const model = AVAILABLE_MODELS.find(m => m.id === selectedModel);
+    return model ? model.name : 'انتخاب مدل';
+  };
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -344,13 +352,25 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <p className="text-xs text-cyan-100 opacity-90 font-light">دستیار هوشمند تحلیل بیمه‌نامه</p>
               </div>
             </div>
-            {/* Mobile Close Button */}
-            <button 
-              onClick={toggleSidebar} 
-              className="md:hidden p-1 hover:bg-white/20 rounded-full transition-colors"
-            >
-              <X size={20} className="text-white" />
-            </button>
+            
+            <div className="flex items-center gap-1">
+              {/* API Settings Button (Visible here for Desktop) */}
+              <button 
+                onClick={onOpenSettings} 
+                className="p-1.5 hover:bg-white/20 rounded-lg transition-colors text-white"
+                title="تنظیمات API"
+              >
+                <Key size={20} />
+              </button>
+
+              {/* Mobile Close Button */}
+              <button 
+                onClick={toggleSidebar} 
+                className="md:hidden p-1 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <X size={20} className="text-white" />
+              </button>
+            </div>
           </div>
 
           {/* Model Selection Dropdown */}
@@ -361,27 +381,37 @@ const Sidebar: React.FC<SidebarProps> = ({
              >
                <div className="flex items-center gap-2">
                  <Cpu size={14} className="text-cyan-200" />
-                 <span>مدل: {selectedModel === 'gemini-2.0-flash' ? 'Flash 2.0 (سریع/هوشمند)' : 'Flash 1.5 (پایدار)'}</span>
+                 <span className="truncate max-w-[180px]">{getActiveModelName()}</span>
                </div>
                <ChevronDown size={12} className={`transition-transform ${isModelMenuOpen ? 'rotate-180' : ''}`} />
              </button>
 
              {isModelMenuOpen && (
-               <div className="absolute top-full right-0 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-100 py-1 text-gray-700 z-20 overflow-hidden animate-fade-in">
-                 <button 
-                   onClick={() => { onSelectModel('gemini-2.0-flash'); setIsModelMenuOpen(false); }}
-                   className="w-full px-3 py-2 text-xs text-right hover:bg-cyan-50 hover:text-day-teal flex items-center justify-between group"
-                 >
-                   <span>Flash 2.0 (پیشنهادی)</span>
-                   {selectedModel === 'gemini-2.0-flash' && <Check size={12} className="text-day-teal" />}
-                 </button>
-                 <button 
-                   onClick={() => { onSelectModel('gemini-1.5-flash'); setIsModelMenuOpen(false); }}
-                   className="w-full px-3 py-2 text-xs text-right hover:bg-cyan-50 hover:text-day-teal flex items-center justify-between"
-                 >
-                   <span>Flash 1.5 (نسخه پایدار)</span>
-                   {selectedModel === 'gemini-1.5-flash' && <Check size={12} className="text-day-teal" />}
-                 </button>
+               <div className="absolute top-full right-0 w-full mt-1 bg-white rounded-lg shadow-xl border border-gray-100 py-1 text-gray-700 z-20 overflow-hidden animate-fade-in max-h-[300px] overflow-y-auto custom-scrollbar">
+                 <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">
+                    <span className="text-[10px] font-bold text-gray-500">انتخاب مدل (بر اساس محدودیت API)</span>
+                 </div>
+                 {AVAILABLE_MODELS.map((model) => (
+                   <button 
+                     key={model.id}
+                     onClick={() => { onSelectModel(model.id); setIsModelMenuOpen(false); }}
+                     className="w-full px-3 py-2 text-right hover:bg-cyan-50 flex flex-col gap-1 border-b border-gray-50 last:border-0 transition-colors"
+                   >
+                     <div className="flex items-center justify-between w-full">
+                        <span className={`text-xs font-bold ${selectedModel === model.id ? 'text-day-teal' : 'text-gray-800'}`}>
+                            {model.name}
+                        </span>
+                        {selectedModel === model.id && <Check size={12} className="text-day-teal" />}
+                     </div>
+                     <span className="text-[10px] text-gray-500">{model.description}</span>
+                     <div className="flex gap-2 mt-0.5">
+                        {model.isNew && <span className="text-[9px] bg-blue-100 text-blue-600 px-1.5 rounded flex items-center gap-0.5"><Zap size={8} /> جدید</span>}
+                        {model.isStable && <span className="text-[9px] bg-green-100 text-green-600 px-1.5 rounded flex items-center gap-0.5"><CheckCircle size={8} /> پایدار</span>}
+                        {model.isPro && <span className="text-[9px] bg-purple-100 text-purple-600 px-1.5 rounded flex items-center gap-0.5"><Brain size={8} /> هوشمند</span>}
+                        <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 rounded flex items-center gap-0.5"><Activity size={8} /> {model.rpm} RPM</span>
+                     </div>
+                   </button>
+                 ))}
                </div>
              )}
           </div>
@@ -428,7 +458,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
         </div>
 
-        {/* ... TABS CONTENT ... (Same as before) */}
+        {/* ... (Rest of the content - Sources, Tasks, History) ... */}
         {/* === SOURCES TAB CONTENT === */}
         {activeTab === 'sources' && (
           <>

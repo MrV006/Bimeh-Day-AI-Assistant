@@ -51,7 +51,10 @@ import {
   Key,
   ExternalLink,
   Cpu,
-  RefreshCcw
+  RefreshCcw,
+  Zap,
+  Brain,
+  Activity
 } from 'lucide-react';
 
 export {
@@ -106,5 +109,8 @@ export {
   Key,
   ExternalLink,
   Cpu,
-  RefreshCcw
+  RefreshCcw,
+  Zap,
+  Brain,
+  Activity
 };

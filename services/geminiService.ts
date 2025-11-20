@@ -1,10 +1,58 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import { KnowledgeSource, Role, Message } from '../types';
+import { KnowledgeSource, Role, Message, ModelId, ModelConfig } from '../types';
+
+// Define Available Models and their Free Tier Limits
+export const AVAILABLE_MODELS: ModelConfig[] = [
+  {
+    id: 'gemini-2.0-flash',
+    name: 'Gemini 2.0 Flash',
+    description: 'تعادل عالی بین سرعت و هوش (پیشنهادی)',
+    rpm: 15,
+    rpd: 1500,
+    tpm: '1M',
+    isNew: true
+  },
+  {
+    id: 'gemini-2.0-flash-lite-preview-02-05',
+    name: 'Gemini 2.0 Flash Lite',
+    description: 'سریع‌ترین و سبک‌ترین مدل (مناسب سرعت بالا)',
+    rpm: 30,
+    rpd: 1500,
+    tpm: '1M',
+    isNew: true
+  },
+  {
+    id: 'gemini-1.5-flash',
+    name: 'Gemini 1.5 Flash',
+    description: 'نسخه پایدار و استاندارد گوگل',
+    rpm: 15,
+    rpd: 1500,
+    tpm: '1M',
+    isStable: true
+  },
+  {
+    id: 'gemini-1.5-pro',
+    name: 'Gemini 1.5 Pro',
+    description: 'هوشمندترین مدل (برای تحلیل‌های پیچیده)',
+    rpm: 2,
+    rpd: 50,
+    tpm: '32K',
+    isPro: true
+  },
+  {
+    id: 'gemini-1.5-flash-8b',
+    name: 'Gemini 1.5 Flash-8B',
+    description: 'نسخه بسیار سریع و کم‌حجم',
+    rpm: 15,
+    rpd: 1500,
+    tpm: '1M'
+  }
+];
 
 const getClient = (userApiKey?: string) => {
   // If user has provided their own key, use it.
   if (userApiKey && userApiKey.trim() !== "") {
-      return new GoogleGenAI({ apiKey: userApiKey });
+      return new GoogleGenAI({ apiKey: userApiKey.trim() });
   }
 
   // Fallback to the hardcoded (obfuscated) key
@@ -86,11 +134,10 @@ export const generateInsuranceResponse = async (
     if (msg.includes("fetch failed") || msg.includes("network") || msg.includes("failed to fetch") || errorName === "typeerror") {
       customMessage = "خطا در اتصال به اینترنت. لطفاً اتصال خود یا VPN را بررسی کنید.";
     } else if (msg.includes("api key") || msg.includes("400") || msg.includes("401") || msg.includes("403") || msg.includes("invalid_argument")) {
-      // Specific flag to tell UI to open API settings
       throw new Error("API_KEY_INVALID");
-    } else if (msg.includes("429") || msg.includes("quota") || msg.includes("exhausted")) {
-      // Quota exhausted often means the free key is dead, prompt for user key
-       throw new Error("API_KEY_INVALID");
+    } else if (msg.includes("429") || msg.includes("quota") || msg.includes("exhausted") || msg.includes("too many requests")) {
+      // Rate Limit Error
+      throw new Error("RATE_LIMIT_EXCEEDED");
     } else if (msg.includes("503") || msg.includes("500") || msg.includes("overloaded")) {
       customMessage = "سرویس هوش مصنوعی موقتاً در دسترس نیست. لطفاً دقایقی دیگر تلاش کنید.";
     } else if (msg.includes("safety") || msg.includes("blocked")) {

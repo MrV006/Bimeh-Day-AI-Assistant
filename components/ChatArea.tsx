@@ -415,10 +415,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({
         <div className={`mt-3 p-3 rounded-lg border ${msg.role === Role.USER ? 'bg-white/10 border-white/20' : 'bg-yellow-50 border-yellow-200'} animate-fade-in`}>
           <textarea
             autoFocus
+            dir="rtl"
             value={noteContent}
             onChange={(e) => setNoteContent(e.target.value)}
             placeholder="یادداشت خود را اینجا بنویسید..."
-            className={`w-full text-sm p-2 rounded bg-transparent border-b focus:outline-none resize-none ${msg.role === Role.USER ? 'text-white placeholder-white/60 border-white/30 focus:border-white' : 'text-gray-700 placeholder-gray-400 border-yellow-300 focus:border-yellow-500'}`}
+            className={`w-full text-sm p-2 rounded bg-transparent border-b focus:outline-none resize-none text-right ${msg.role === Role.USER ? 'text-white placeholder-white/60 border-white/30 focus:border-white' : 'text-gray-700 placeholder-gray-400 border-yellow-300 focus:border-yellow-500'}`}
             rows={2}
           />
           <div className="flex justify-end gap-2 mt-2">

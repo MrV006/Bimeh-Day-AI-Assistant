@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import InputArea from './components/InputArea';
-import { generateInsuranceResponse } from './services/geminiService';
-import { Message, KnowledgeSource, Role, Task, ChatSession, ModelId } from './types';
+import { generateInsuranceResponse, AVAILABLE_MODELS } from './services/geminiService';
+import { Message, KnowledgeSource, Role, Task, ChatSession, ModelId, UsageStats } from './types';
 import { Menu, RefreshCw, Key, X, ExternalLink, CheckCircle } from './components/Icons';
 
 const INITIAL_SOURCES: KnowledgeSource[] = [
@@ -31,7 +31,8 @@ const STORAGE_KEYS = {
   TASKS: 'bimeh_day_tasks',
   HISTORY: 'bimeh_day_chat_history',
   API_KEY: 'bimeh_day_user_api_key',
-  MODEL: 'bimeh_day_selected_model'
+  MODEL: 'bimeh_day_selected_model',
+  USAGE: 'bimeh_day_usage_stats'
 };
 
 // Helper function to reverse string for simple obfuscation
@@ -78,15 +79,28 @@ const App: React.FC = () => {
     }
   });
 
+  // Usage Stats for Rate Limit Tracking
+  const [usageStats, setUsageStats] = useState<UsageStats>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.USAGE);
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
   // User API Key State
   const [userApiKey, setUserApiKey] = useState<string>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.API_KEY);
     if (!saved) return '';
     
-    // Legacy check: If it starts with 'AIza', it was stored in plain text (old version).
-    // We return it as is, and the useEffect will re-save it in reverse shortly.
+    // Robust Migration Check:
+    // If the stored key starts with 'AIza', it is in the old plain-text format.
+    // We return it as is. The useEffect hook will detect this plain text value in state,
+    // and immediately re-save it to localStorage in the new reversed format.
+    // This ensures seamless migration without user intervention.
     if (saved.trim().startsWith('AIza')) {
-      return saved;
+      return saved.trim();
     }
 
     // Otherwise, assume it is stored in reverse (obfuscated), so we reverse it back to normal
@@ -113,6 +127,7 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.SOURCES, JSON.stringify(sources)); }, [sources]);
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks)); }, [tasks]);
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(chatHistory)); }, [chatHistory]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.USAGE, JSON.stringify(usageStats)); }, [usageStats]);
   
   // Persist API Key (Obfuscated)
   useEffect(() => {
@@ -155,11 +170,13 @@ const App: React.FC = () => {
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
   const handleSaveApiKey = () => {
-    setUserApiKey(tempApiKey);
-    setShowApiKeyModal(false);
-    setTempApiKey('');
-    // Optional: trigger a retry or just let the user try sending again
-    alert('کلید API با موفقیت ذخیره شد. لطفاً مجدداً پیام خود را ارسال کنید.');
+    const cleanedKey = tempApiKey.trim();
+    if (cleanedKey) {
+        setUserApiKey(cleanedKey);
+        setShowApiKeyModal(false);
+        setTempApiKey('');
+        alert('کلید API با موفقیت ذخیره شد. لطفاً مجدداً پیام خود را ارسال کنید.');
+    }
   };
 
   const handleClearApiKey = () => {
@@ -208,13 +225,44 @@ const App: React.FC = () => {
       localStorage.removeItem(STORAGE_KEYS.HISTORY);
       localStorage.removeItem(STORAGE_KEYS.API_KEY);
       localStorage.removeItem(STORAGE_KEYS.MODEL);
+      localStorage.removeItem(STORAGE_KEYS.USAGE);
       setMessages([]);
       setSources(INITIAL_SOURCES);
       setTasks([]);
       setChatHistory([]);
+      setUsageStats({});
       setUserApiKey('');
       setSelectedModel('gemini-2.0-flash');
     }
+  };
+
+  // --- Usage Tracking Helper ---
+  const updateUsageStats = (modelId: string) => {
+    const now = Date.now();
+    setUsageStats(prev => {
+      const stats = prev[modelId] || { minuteCount: 0, lastMinuteReset: now, dayCount: 0, lastDayReset: now };
+      
+      // Reset Minute Count if 60s passed
+      if (now - stats.lastMinuteReset > 60000) {
+        stats.minuteCount = 0;
+        stats.lastMinuteReset = now;
+      }
+      
+      // Reset Day Count if 24h passed
+      if (now - stats.lastDayReset > 86400000) {
+        stats.dayCount = 0;
+        stats.lastDayReset = now;
+      }
+      
+      return {
+        ...prev,
+        [modelId]: {
+          ...stats,
+          minuteCount: stats.minuteCount + 1,
+          dayCount: stats.dayCount + 1
+        }
+      };
+    });
   };
 
   const handleSendMessage = async (text: string) => {
@@ -226,6 +274,9 @@ const App: React.FC = () => {
     };
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
+
+    // Track usage before sending (optimistic)
+    updateUsageStats(selectedModel);
 
     try {
       const responseText = await generateInsuranceResponse(
@@ -255,6 +306,29 @@ const App: React.FC = () => {
             isError: true
         };
         setMessages(prev => [...prev, errorMsg]);
+      } else if (error.message === "RATE_LIMIT_EXCEEDED") {
+        // Handle Rate Limit specifically based on usage tracking
+        const currentStats = usageStats[selectedModel];
+        const modelConfig = AVAILABLE_MODELS.find(m => m.id === selectedModel);
+        let rateLimitMsg = "به سقف مجاز استفاده از این مدل رسیدید.";
+
+        if (currentStats && modelConfig) {
+           if (currentStats.minuteCount >= modelConfig.rpm) {
+             rateLimitMsg = `شما بیش از ${modelConfig.rpm} پیام در دقیقه با مدل ${modelConfig.name} فرستادید. لطفاً ۱ دقیقه صبر کنید یا از مدل "Flash Lite" استفاده کنید.`;
+           } else if (currentStats.dayCount >= modelConfig.rpd) {
+             rateLimitMsg = `سقف استفاده روزانه (${modelConfig.rpd} پیام) برای مدل ${modelConfig.name} پر شده است. لطفاً مدل دیگری انتخاب کنید.`;
+           }
+        }
+
+        const errorMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          role: Role.MODEL,
+          text: rateLimitMsg,
+          timestamp: Date.now(),
+          isError: true
+        };
+        setMessages(prev => [...prev, errorMsg]);
+
       } else {
         const errorMessage = error.message || "متاسفانه خطایی در ارتباط با سرویس رخ داده است.";
         const errorMsg: Message = {
@@ -296,7 +370,13 @@ const App: React.FC = () => {
   };
 
   const handleSwitchModelAndRetry = () => {
-    setSelectedModel('gemini-1.5-flash');
+    // Smart switching: If on Pro/Standard, switch to Lite for speed/limits. If on Lite, switch to Standard.
+    if (selectedModel === 'gemini-2.0-flash-lite-preview-02-05') {
+        setSelectedModel('gemini-2.0-flash');
+    } else {
+        setSelectedModel('gemini-2.0-flash-lite-preview-02-05'); // Switch to the highest limit model
+    }
+    
     // Use setTimeout to ensure state update processes before retry logic triggers
     setTimeout(() => handleRetry(), 100);
   };
@@ -467,6 +547,7 @@ const App: React.FC = () => {
         onDeleteChat={handleDeleteChat}
         onClearHistory={handleClearHistory}
         onClearCache={handleClearCache}
+        onOpenSettings={() => setShowApiKeyModal(true)}
       />
       
       <main className="flex-1 flex flex-col h-full pt-14 md:pt-0 overflow-hidden relative">
