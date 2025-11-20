@@ -18,7 +18,7 @@ export const generateInsuranceResponse = async (
 ): Promise<string> => {
   try {
     const ai = getClient();
-    const modelId = 'gemini-2.5-flash';
+    const modelId = 'gemini-1.5-flash';
 
     // Explicitly filter for active sources only.
     const activeSources = knowledgeBase.filter(k => k.isActive);
