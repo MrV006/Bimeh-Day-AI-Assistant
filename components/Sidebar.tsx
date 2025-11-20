@@ -1,6 +1,6 @@
 import React, { useState, DragEvent, useRef, useMemo } from 'react';
 import { KnowledgeSource, Task, ChatSession } from '../types';
-import { Plus, FileText, Trash2, CheckCircle, Database, XCircle, ShieldCheck, UploadCloud, Loader, MessageSquarePlus, X, Search, ListTodo, Calendar, Clock, Square, CheckSquare, ArrowUpDown, History, ArchiveRestore, Eraser, MessageSquare } from './Icons';
+import { Plus, FileText, Trash2, CheckCircle, Database, XCircle, ShieldCheck, UploadCloud, Loader, MessageSquarePlus, X, Search, ListTodo, Calendar, Clock, Square, CheckSquare, ArrowUpDown, History, ArchiveRestore, Eraser, MessageSquare, Globe, Link, Github, Phone } from './Icons';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
@@ -28,6 +28,7 @@ interface SidebarProps {
 
 type Tab = 'sources' | 'tasks' | 'history';
 type SortOption = 'newest' | 'oldest' | 'alpha';
+type AddMode = 'file' | 'link';
 
 const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
@@ -51,6 +52,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   
   // Source State
   const [isAdding, setIsAdding] = useState(false);
+  const [addMode, setAddMode] = useState<AddMode>('file');
+  const [urlInput, setUrlInput] = useState('');
+  
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
@@ -127,13 +131,14 @@ const Sidebar: React.FC<SidebarProps> = ({
       id: Date.now().toString(),
       title: newTitle,
       content: newContent,
-      type: 'text', // Storing as text regardless of origin to keep structure simple
+      type: addMode === 'link' ? 'link' : 'text',
       isActive: true
     };
     
     onAddSource(newSource);
     setNewTitle('');
     setNewContent('');
+    setUrlInput('');
     setIsAdding(false);
   };
 
@@ -217,6 +222,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       if (text.trim()) {
         setNewTitle(file.name);
         setNewContent(text);
+        setAddMode('file');
       } else {
         alert('متن قابل خواندن در این فایل یافت نشد.');
       }
@@ -226,6 +232,51 @@ const Sidebar: React.FC<SidebarProps> = ({
     } finally {
       setIsProcessingFile(false);
       setUploadProgress('');
+    }
+  };
+
+  // --- URL Fetch Logic ---
+  const handleFetchUrl = async () => {
+    if (!urlInput.trim()) return;
+    
+    setIsProcessingFile(true);
+    setUploadProgress('در حال دریافت محتوای وبسایت...');
+
+    try {
+        // Use AllOrigins as a public CORS proxy
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(urlInput)}`;
+        const response = await fetch(proxyUrl);
+        const data = await response.json();
+
+        if (data.contents) {
+            setUploadProgress('در حال استخراج متن...');
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(data.contents, 'text/html');
+
+            // Remove scripts, styles, and other non-content elements
+            doc.querySelectorAll('script, style, iframe, nav, footer, header, aside, noscript').forEach(el => el.remove());
+
+            const title = doc.title || urlInput;
+            const text = doc.body.innerText || doc.body.textContent || '';
+            
+            // Basic cleaning
+            const cleanText = text.replace(/\s+/g, ' ').trim();
+
+            if (cleanText.length < 50) {
+                throw new Error('محتوای متنی کافی در این صفحه یافت نشد.');
+            }
+
+            setNewTitle(title);
+            setNewContent(cleanText);
+        } else {
+            throw new Error('امکان دریافت محتوا از این آدرس وجود ندارد.');
+        }
+    } catch (error) {
+        console.error('URL fetch error:', error);
+        alert('خطا در خواندن آدرس وب. ممکن است سایت محدودیت دسترسی داشته باشد.');
+    } finally {
+        setIsProcessingFile(false);
+        setUploadProgress('');
     }
   };
 
@@ -425,7 +476,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 overflow-hidden flex-1 ml-2">
                           <div className={`p-1.5 rounded-lg ${source.isActive ? 'bg-white text-day-teal' : 'bg-gray-200 text-gray-500'}`}>
-                            <FileText size={16} className="shrink-0" />
+                            {source.type === 'link' ? <Globe size={16} className="shrink-0" /> : <FileText size={16} className="shrink-0" />}
                           </div>
                           <span className={`text-sm font-bold truncate ${source.isActive ? 'text-day-dark' : 'text-gray-600'}`}>
                             {highlightText(source.title, searchQuery)}
@@ -498,7 +549,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <span className="font-bold text-sm">افزودن سند جدید</span>
                 </button>
               ) : (
-                <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-lg animate-fade-in flex flex-col max-h-[400px] overflow-y-auto">
+                <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-lg animate-fade-in flex flex-col max-h-[450px] overflow-y-auto">
                   <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
                     <span className="text-sm font-bold text-day-dark">بارگذاری سند</span>
                     <button onClick={() => setIsAdding(false)} className="text-gray-400 hover:text-day-accent">
@@ -506,51 +557,100 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </button>
                   </div>
 
-                  {/* Drag and Drop Area */}
-                  <div
-                    onDragOver={onDragOver}
-                    onDragLeave={onDragLeave}
-                    onDrop={onDrop}
-                    onClick={() => !isProcessingFile && fileInputRef.current?.click()}
-                    className={`
-                      mb-4 border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all duration-200
-                      flex flex-col items-center justify-center gap-3 min-h-[140px] group
-                      ${isDragging 
-                        ? 'border-day-teal bg-cyan-50' 
-                        : 'border-gray-200 hover:border-day-teal hover:bg-gray-50'}
-                      ${isProcessingFile ? 'cursor-default hover:bg-white' : ''}
-                    `}
-                  >
-                    <input 
-                      type="file" 
-                      ref={fileInputRef}
-                      onChange={onFileInputChange}
-                      className="hidden"
-                      accept=".txt,.md,.json,.csv,.pdf,.docx"
-                      disabled={isProcessingFile}
-                    />
-                    
-                    {isProcessingFile ? (
-                      <div className="flex flex-col items-center gap-3 animate-pulse">
-                        <Loader size={32} className="animate-spin text-day-teal" />
-                        <span className="text-xs text-day-dark font-bold">{uploadProgress || 'در حال پردازش...'}</span>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-cyan-100 transition-colors">
-                            <UploadCloud size={24} className="text-gray-400 group-hover:text-day-teal" />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                            <span className="text-xs text-gray-700 font-bold">
-                            کلیک کنید یا فایل را اینجا رها کنید
-                            </span>
-                            <span className="text-[10px] text-gray-400">
-                            PDF, DOCX, TXT
-                            </span>
-                        </div>
-                      </>
-                    )}
+                  {/* Mode Switcher */}
+                  <div className="flex bg-gray-100 p-1 rounded-lg mb-4">
+                      <button
+                        onClick={() => setAddMode('file')}
+                        className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-medium rounded-md transition-all ${addMode === 'file' ? 'bg-white text-day-teal shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                      >
+                          <UploadCloud size={14} />
+                          آپلود فایل
+                      </button>
+                      <button
+                        onClick={() => setAddMode('link')}
+                        className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-medium rounded-md transition-all ${addMode === 'link' ? 'bg-white text-day-teal shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                      >
+                          <Link size={14} />
+                          لینک وبسایت
+                      </button>
                   </div>
+
+                  {addMode === 'file' ? (
+                      /* Drag and Drop Area */
+                      <div
+                        onDragOver={onDragOver}
+                        onDragLeave={onDragLeave}
+                        onDrop={onDrop}
+                        onClick={() => !isProcessingFile && fileInputRef.current?.click()}
+                        className={`
+                          mb-4 border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all duration-200
+                          flex flex-col items-center justify-center gap-3 min-h-[140px] group
+                          ${isDragging 
+                            ? 'border-day-teal bg-cyan-50' 
+                            : 'border-gray-200 hover:border-day-teal hover:bg-gray-50'}
+                          ${isProcessingFile ? 'cursor-default hover:bg-white' : ''}
+                        `}
+                      >
+                        <input 
+                          type="file" 
+                          ref={fileInputRef}
+                          onChange={onFileInputChange}
+                          className="hidden"
+                          accept=".txt,.md,.json,.csv,.pdf,.docx"
+                          disabled={isProcessingFile}
+                        />
+                        
+                        {isProcessingFile ? (
+                          <div className="flex flex-col items-center gap-3 animate-pulse">
+                            <Loader size={32} className="animate-spin text-day-teal" />
+                            <span className="text-xs text-day-dark font-bold">{uploadProgress || 'در حال پردازش...'}</span>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-cyan-100 transition-colors">
+                                <UploadCloud size={24} className="text-gray-400 group-hover:text-day-teal" />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <span className="text-xs text-gray-700 font-bold">
+                                کلیک کنید یا فایل را اینجا رها کنید
+                                </span>
+                                <span className="text-[10px] text-gray-400">
+                                PDF, DOCX, TXT
+                                </span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                  ) : (
+                      /* Website Link Area */
+                      <div className="mb-4">
+                         <div className="flex gap-2">
+                            <input 
+                                type="url"
+                                placeholder="https://example.com"
+                                value={urlInput}
+                                onChange={(e) => setUrlInput(e.target.value)}
+                                className="flex-1 text-sm p-2 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-day-teal outline-none dir-ltr text-left"
+                            />
+                            <button 
+                                onClick={handleFetchUrl}
+                                disabled={!urlInput || isProcessingFile}
+                                className="bg-day-dark text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-day-teal disabled:opacity-50 transition-colors"
+                            >
+                                {isProcessingFile ? <Loader size={14} className="animate-spin" /> : 'دریافت'}
+                            </button>
+                         </div>
+                         {isProcessingFile && (
+                             <div className="mt-2 flex items-center gap-2 text-xs text-day-teal">
+                                <Loader size={12} className="animate-spin" />
+                                <span>{uploadProgress}</span>
+                             </div>
+                         )}
+                         <p className="text-[10px] text-gray-400 mt-2">
+                            محتوای متنی صفحه به صورت خودکار استخراج و تمیز می‌شود.
+                         </p>
+                      </div>
+                  )}
                   
                   <div className="space-y-3">
                     <input 
@@ -821,6 +921,29 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
             </>
         )}
+
+        {/* DEVELOPER SIGNATURE (Always visible at bottom) */}
+        <div className="p-4 border-t border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-500 mt-auto">
+            <p className="text-[10px] font-medium mb-2 tracking-wide">طراحی و توسعه توسط <span className="text-day-teal font-bold">Mr.V</span></p>
+            <div className="flex items-center gap-4">
+                <a 
+                    href="https://github.com/MrV006" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="hover:text-black transition-colors"
+                    title="GitHub: MrV006"
+                >
+                    <Github size={16} />
+                </a>
+                <a 
+                    href="tel:09902076468" 
+                    className="hover:text-green-600 transition-colors"
+                    title="Call: 09902076468"
+                >
+                    <Phone size={16} />
+                </a>
+            </div>
+        </div>
       </aside>
     </>
   );

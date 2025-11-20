@@ -42,7 +42,11 @@ import {
   ArchiveRestore,
   Eraser,
   MessageSquare,
-  ArrowUp
+  ArrowUp,
+  Globe,
+  Link,
+  Github,
+  Phone
 } from 'lucide-react';
 
 export {
@@ -88,5 +92,9 @@ export {
   ArchiveRestore,
   Eraser,
   MessageSquare,
-  ArrowUp
+  ArrowUp,
+  Globe,
+  Link,
+  Github,
+  Phone
 };

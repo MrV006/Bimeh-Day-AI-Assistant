@@ -557,79 +557,89 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
         </div>
       )}
 
-      {/* --- STICKY SEARCH HEADER --- */}
-      {isSearchOpen && (
-        <div className="absolute top-0 left-0 right-0 z-20 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm p-3 animate-fade-in">
-          <div className="max-w-5xl mx-auto flex items-center gap-3">
-            <div className="relative flex-1">
-              <input
-                ref={searchInputRef}
-                autoFocus
-                type="text"
-                placeholder="جستجو در گفتگو..."
-                className="w-full pl-10 pr-4 py-2 bg-gray-100 border border-transparent focus:bg-white focus:border-day-teal focus:ring-2 focus:ring-cyan-100 rounded-lg text-sm transition-all outline-none"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-gray-400 font-medium">
-                {matches.length > 0 ? (
-                  <span>{currentMatchIndex + 1} از {matches.length}</span>
-                ) : searchQuery ? (
-                  <span>0</span>
-                ) : null}
-              </div>
-            </div>
+      {/* --- STICKY HEADER TOOLBAR (Merged Actions & Search) --- */}
+      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm transition-all">
+        <div className="max-w-5xl mx-auto p-3 flex items-center gap-3">
             
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-              <button onClick={handlePrev} disabled={matches.length === 0} className="p-1.5 hover:bg-white hover:text-day-teal rounded-md text-gray-500 disabled:opacity-30 transition-all">
-                <ChevronUp size={18} />
-              </button>
-              <div className="w-px h-4 bg-gray-300 mx-0.5"></div>
-              <button onClick={handleNext} disabled={matches.length === 0} className="p-1.5 hover:bg-white hover:text-day-teal rounded-md text-gray-500 disabled:opacity-30 transition-all">
-                <ChevronDown size={18} />
-              </button>
-            </div>
+            {isSearchOpen ? (
+              // Search Mode Toolbar
+              <div className="flex-1 flex items-center gap-3 animate-fade-in">
+                  <div className="relative flex-1">
+                    <input
+                      ref={searchInputRef}
+                      autoFocus
+                      type="text"
+                      placeholder="جستجو در گفتگو..."
+                      className="w-full pl-10 pr-4 py-2 bg-gray-100 border border-transparent focus:bg-white focus:border-day-teal focus:ring-2 focus:ring-cyan-100 rounded-lg text-sm transition-all outline-none"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-gray-400 font-medium">
+                      {matches.length > 0 ? (
+                        <span>{currentMatchIndex + 1} از {matches.length}</span>
+                      ) : searchQuery ? (
+                        <span>0</span>
+                      ) : null}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 shrink-0">
+                    <button onClick={handlePrev} disabled={matches.length === 0} className="p-1.5 hover:bg-white hover:text-day-teal rounded-md text-gray-500 disabled:opacity-30 transition-all">
+                      <ChevronUp size={18} />
+                    </button>
+                    <div className="w-px h-4 bg-gray-300 mx-0.5"></div>
+                    <button onClick={handleNext} disabled={matches.length === 0} className="p-1.5 hover:bg-white hover:text-day-teal rounded-md text-gray-500 disabled:opacity-30 transition-all">
+                      <ChevronDown size={18} />
+                    </button>
+                  </div>
 
-            <button onClick={closeSearch} className="p-2 hover:bg-red-50 hover:text-red-500 text-gray-500 rounded-lg transition-colors">
-              <X size={20} />
-            </button>
-          </div>
+                  <button onClick={closeSearch} className="p-2 hover:bg-red-50 hover:text-red-500 text-gray-500 rounded-lg transition-colors shrink-0">
+                    <X size={20} />
+                  </button>
+              </div>
+            ) : (
+               // Standard Action Toolbar
+               <div className="flex-1 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setShowBookmarks(!showBookmarks)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all text-sm font-medium
+                          ${showBookmarks 
+                            ? 'bg-day-teal text-white shadow-md' 
+                            : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-day-teal'
+                          }
+                        `}
+                        title="فیلتر نشان‌شده‌ها"
+                      >
+                        <Bookmark size={16} className={showBookmarks ? 'fill-current' : ''} />
+                        <span className="hidden md:inline">نشان‌شده‌ها</span>
+                      </button>
+
+                      <button 
+                        onClick={() => setIsSearchOpen(true)}
+                        className="p-2 text-gray-500 hover:text-day-teal hover:bg-gray-50 rounded-xl transition-colors"
+                        title="جستجو (Ctrl+F)"
+                      >
+                        <Search size={18} />
+                      </button>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                     {messages.length > 0 && (
+                       <button 
+                          onClick={() => setIsPreviewOpen(true)}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 hover:bg-day-teal hover:text-white text-gray-600 rounded-xl transition-all text-sm font-medium group"
+                          title="خروجی و دانلود"
+                        >
+                          <Download size={16} />
+                          <span className="hidden md:inline">خروجی</span>
+                        </button>
+                     )}
+                  </div>
+               </div>
+            )}
         </div>
-      )}
-
-      {/* --- ACTION BUTTONS (Search & Export & Bookmark Toggle) --- */}
-      {!isSearchOpen && messages.length > 0 && (
-        <div className="absolute top-6 left-6 z-10 flex flex-col gap-2 no-print">
-           <button 
-            onClick={() => setShowBookmarks(!showBookmarks)}
-            className={`p-2.5 backdrop-blur border transition-all duration-300 group shadow-sm hover:shadow-md rounded-xl
-              ${showBookmarks 
-                ? 'bg-day-teal text-white border-day-teal' 
-                : 'bg-white/80 border-gray-200 text-gray-500 hover:bg-yellow-50 hover:border-yellow-300 hover:text-yellow-600'
-              }
-            `}
-            title="نشان‌شده‌ها"
-          >
-            <Bookmark size={20} className={`transition-transform group-hover:scale-110 ${showBookmarks ? 'fill-current' : ''}`} />
-          </button>
-
-          <button 
-            onClick={() => setIsSearchOpen(true)}
-            className="p-2.5 bg-white/80 backdrop-blur border border-gray-200 text-gray-500 rounded-xl hover:bg-day-teal hover:text-white hover:border-day-teal shadow-sm hover:shadow-md transition-all duration-300 group"
-            title="جستجو (Ctrl+F)"
-          >
-            <Search size={20} className="group-hover:scale-110 transition-transform" />
-          </button>
-          
-          <button 
-            onClick={() => setIsPreviewOpen(true)}
-            className="p-2.5 bg-white/80 backdrop-blur border border-gray-200 text-gray-500 rounded-xl hover:bg-day-accent hover:text-white hover:border-day-accent shadow-sm hover:shadow-md transition-all duration-300 group"
-            title="خروجی و دانلود"
-          >
-            <Download size={20} className="group-hover:scale-110 transition-transform" />
-          </button>
-        </div>
-      )}
+      </div>
 
       {/* --- SCROLL TO TOP BUTTON --- */}
       {showScrollTop && (
@@ -643,7 +653,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
       )}
 
       {/* --- MESSAGES CONTAINER --- */}
-      <div ref={containerRef} className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar pt-16 md:pt-8 no-print scroll-smooth">
+      <div ref={containerRef} className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar no-print scroll-smooth">
         <div className="max-w-5xl mx-auto space-y-8 pb-4">
           {messages.length === 0 && (
             <div className="min-h-[60vh] flex flex-col items-center justify-center text-gray-400 opacity-90">
