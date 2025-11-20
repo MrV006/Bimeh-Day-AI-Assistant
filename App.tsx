@@ -4,7 +4,7 @@ import ChatArea from './components/ChatArea';
 import InputArea from './components/InputArea';
 import { generateInsuranceResponse } from './services/geminiService';
 import { Message, KnowledgeSource, Role, Task, ChatSession } from './types';
-import { Menu } from './components/Icons';
+import { Menu, RefreshCw } from './components/Icons';
 
 const INITIAL_SOURCES: KnowledgeSource[] = [
   {
@@ -76,6 +76,10 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // Update Detection State
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [appVersion, setAppVersion] = useState<number | null>(null);
+
   // Persist messages
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(messages));
@@ -95,6 +99,54 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(chatHistory));
   }, [chatHistory]);
+
+  // Check for updates logic
+  useEffect(() => {
+    const checkVersion = async () => {
+      try {
+        // Use a relative path. The ?t= timestamp ensures we bypass browser cache for this file
+        const res = await fetch(`./version.json?t=${Date.now()}`);
+        if (!res.ok) return;
+        
+        const data = await res.json();
+        const latestTimestamp = data.timestamp;
+
+        if (appVersion === null) {
+          // First load, set current version
+          setAppVersion(latestTimestamp);
+        } else if (latestTimestamp > appVersion) {
+          // Server has newer version
+          setUpdateAvailable(true);
+        }
+      } catch (e) {
+        console.error("Version check failed (dev mode maybe?)", e);
+      }
+    };
+
+    // Check immediately on mount
+    checkVersion();
+
+    // Check every 60 seconds
+    const interval = setInterval(checkVersion, 60 * 1000);
+
+    // Also check when tab becomes visible (user returns to app)
+    const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+            checkVersion();
+        }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+        clearInterval(interval);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [appVersion]);
+
+  const handleUpdateApp = () => {
+      // Reloading the page will fetch the new index.html (due to no-cache headers) and new assets
+      window.location.reload();
+  };
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
@@ -244,6 +296,22 @@ const App: React.FC = () => {
   return (
     <div className="flex h-full w-full bg-day-bg relative font-sans overflow-hidden">
       
+      {/* Update Notification Toast */}
+      {updateAvailable && (
+        <div 
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-day-dark/95 backdrop-blur text-white px-5 py-3 rounded-2xl shadow-2xl shadow-cyan-900/20 flex items-center gap-4 animate-bounce-in cursor-pointer hover:bg-black transition-all border border-white/10 group"
+            onClick={handleUpdateApp}
+        >
+            <div className="flex flex-col items-start">
+                <span className="text-sm font-bold">نسخه جدید موجود است</span>
+                <span className="text-[10px] opacity-80 font-light group-hover:underline">برای بروزرسانی کلیک کنید</span>
+            </div>
+            <div className="bg-white/10 p-2 rounded-xl group-hover:bg-day-teal group-hover:text-white transition-colors">
+                <RefreshCw size={20} className="animate-spin" style={{ animationDuration: '3s' }} />
+            </div>
+        </div>
+      )}
+
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 flex items-center px-4 z-20 shadow-sm justify-between">
         {/* Swap order: Menu on Right (Sidebar side), Logo on Left */}

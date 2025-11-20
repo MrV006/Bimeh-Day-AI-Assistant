@@ -3,7 +3,7 @@ import { KnowledgeSource, Role, Message } from '../types';
 
 const getClient = () => {
   // Hardcoded API Key for Demo/Presentation as requested
-    const apiKey = 'AIzaSyA66uf-_7Uz3YUZrJb9dCrXfgALtUeynBw';
+  const apiKey = 'AIzaSyD9YiNy9aXFqDlri-V2VRsnTHqwYZxDto8';
   
   if (!apiKey) {
     throw new Error("کلید API تنظیم نشده است.");
@@ -70,19 +70,21 @@ export const generateInsuranceResponse = async (
 
     let customMessage = "خطایی نامشخص در پردازش درخواست رخ داده است.";
     const msg = (error.message || "").toLowerCase();
+    const errorName = (error.name || "").toLowerCase();
 
-    if (msg.includes("api key") || msg.includes("401") || msg.includes("403")) {
+    // Explicitly catch fetch/network errors (common with VPNs)
+    if (msg.includes("fetch failed") || msg.includes("network") || msg.includes("failed to fetch") || errorName === "typeerror") {
+      customMessage = "خطا در اتصال به اینترنت. لطفاً اتصال خود یا VPN را بررسی کنید.";
+    } else if (msg.includes("api key") || msg.includes("401") || msg.includes("403")) {
       customMessage = "خطای دسترسی: کلید API نامعتبر است یا دسترسی لازم را ندارد.";
     } else if (msg.includes("429") || msg.includes("quota") || msg.includes("exhausted")) {
-      customMessage = "تعداد درخواست‌ها بیش از حد مجاز است (Rate Limit). لطفاً چند لحظه صبر کنید و دوباره تلاش کنید.";
-    } else if (msg.includes("503") || msg.includes("500") || msg.includes("overloaded") || msg.includes("internal error")) {
-      customMessage = "سرویس هوش مصنوعی در حال حاضر شلوغ است یا در دسترس نیست. لطفاً دقایقی دیگر تلاش کنید.";
-    } else if (msg.includes("fetch failed") || msg.includes("network")) {
-      customMessage = "خطا در اتصال به اینترنت. لطفا فیلترشکن خود را بررسی کنید.";
+      customMessage = "تعداد درخواست‌ها بیش از حد مجاز است (Rate Limit). لطفاً چند لحظه صبر کنید.";
+    } else if (msg.includes("503") || msg.includes("500") || msg.includes("overloaded")) {
+      customMessage = "سرویس هوش مصنوعی موقتاً در دسترس نیست. لطفاً دقایقی دیگر تلاش کنید.";
     } else if (msg.includes("safety") || msg.includes("blocked")) {
-      customMessage = "پاسخ مدل به دلایل ایمنی یا محتوایی فیلتر شد.";
-    } else if (msg.includes("found") && msg.includes("404")) {
-       customMessage = "مدل هوش مصنوعی پاسخگو نیست (Error 404).";
+      customMessage = "پاسخ مدل به دلایل ایمنی فیلتر شد.";
+    } else if (msg.includes("404")) {
+       customMessage = "مدل هوش مصنوعی پاسخگو نیست (خطای 404). لطفاً VPN را تغییر دهید.";
     }
 
     throw new Error(customMessage);

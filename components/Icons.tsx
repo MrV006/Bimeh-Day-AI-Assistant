@@ -46,7 +46,8 @@ import {
   Globe,
   Link,
   Github,
-  Phone
+  Phone,
+  RefreshCw
 } from 'lucide-react';
 
 export {
@@ -96,5 +97,6 @@ export {
   Globe,
   Link,
   Github,
-  Phone
+  Phone,
+  RefreshCw
 };
