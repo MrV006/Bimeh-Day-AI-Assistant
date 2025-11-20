@@ -3,7 +3,6 @@ import { KnowledgeSource, Role, Message } from '../types';
 
 const getClient = () => {
   // Hardcoded API Key for Demo/Presentation as requested
-  // Security Note: In a production app, restrict this key in Google Cloud Console to specific domains.
   const apiKey = 'AIzaSyD9YiNy9aXFqDlri-V2VRsnTHqwYZxDto8';
   
   if (!apiKey) {
@@ -19,7 +18,7 @@ export const generateInsuranceResponse = async (
 ): Promise<string> => {
   try {
     const ai = getClient();
-    const modelId = 'gemini-1.5-flash';
+    const modelId = 'gemini-2.5-flash';
 
     // Explicitly filter for active sources only.
     const activeSources = knowledgeBase.filter(k => k.isActive);
@@ -71,23 +70,19 @@ export const generateInsuranceResponse = async (
 
     let customMessage = "خطایی نامشخص در پردازش درخواست رخ داده است.";
     const msg = (error.message || "").toLowerCase();
-    const errorString = String(error);
 
-    // Network/VPN Errors often appear as generic TypeErrors in fetch
-    if (error instanceof TypeError && errorString.includes("Failed to fetch")) {
-        customMessage = "خطا در برقراری ارتباط. لطفاً اتصال اینترنت و وضعیت VPN (فیلترشکن) خود را بررسی کنید.";
-    } else if (msg.includes("api key") || msg.includes("401") || msg.includes("403")) {
+    if (msg.includes("api key") || msg.includes("401") || msg.includes("403")) {
       customMessage = "خطای دسترسی: کلید API نامعتبر است یا دسترسی لازم را ندارد.";
     } else if (msg.includes("429") || msg.includes("quota") || msg.includes("exhausted")) {
       customMessage = "تعداد درخواست‌ها بیش از حد مجاز است (Rate Limit). لطفاً چند لحظه صبر کنید و دوباره تلاش کنید.";
     } else if (msg.includes("503") || msg.includes("500") || msg.includes("overloaded") || msg.includes("internal error")) {
       customMessage = "سرویس هوش مصنوعی در حال حاضر شلوغ است یا در دسترس نیست. لطفاً دقایقی دیگر تلاش کنید.";
-    } else if (msg.includes("fetch failed") || msg.includes("network") || msg.includes("connection") || msg.includes("xhr error") || msg.includes("rpc failed")) {
-      customMessage = "خطا در اتصال به اینترنت یا فایروال. لطفاً ارتباط شبکه یا فیلترشکن خود را بررسی کنید.";
+    } else if (msg.includes("fetch failed") || msg.includes("network")) {
+      customMessage = "خطا در اتصال به اینترنت. لطفا فیلترشکن خود را بررسی کنید.";
     } else if (msg.includes("safety") || msg.includes("blocked")) {
       customMessage = "پاسخ مدل به دلایل ایمنی یا محتوایی فیلتر شد.";
     } else if (msg.includes("found") && msg.includes("404")) {
-      customMessage = "مدل مورد نظر یافت نشد یا آدرس درخواست اشتباه است.";
+       customMessage = "مدل هوش مصنوعی پاسخگو نیست (Error 404).";
     }
 
     throw new Error(customMessage);

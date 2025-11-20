@@ -4,7 +4,6 @@ import { Message, Role } from '../types';
 import { Bot, User, Copy, Check, Car, HeartPulse, FileCheck, Briefcase, Search, ChevronUp, ChevronDown, X, Eye, Download, Printer, FileText, ClipboardList, Bookmark, Pen, Share, ArrowUp } from './Icons';
 import * as docx from 'docx';
 import saveAs from 'file-saver';
-// Note: remark-gfm requires explicit import map setup, fallback to styling for now if plugin is not available
 
 interface ChatAreaProps {
   messages: Message[];
@@ -162,7 +161,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
   };
 
   const handleShare = async (msg: Message) => {
-    // Robust origin detection
     let origin = 'https://dayins.com';
     if (window.location.origin && window.location.origin !== 'null' && window.location.origin !== 'about:blank') {
       origin = window.location.origin;
@@ -186,19 +184,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
           title: 'دستیار هوشمند بیمه دی',
           text: textToShare,
         };
-
-        // Crucial: Only add URL if it is a valid http/https URL
-        // Browsers throw 'Invalid URL' for local/blob/about:blank URLs in share data
         if (origin.startsWith('http')) {
             shareData.url = origin;
         }
-
         await navigator.share(shareData);
       } catch (err) {
-        // Ignore abort errors (user cancelled)
         if ((err as any).name === 'AbortError') return;
-        
-        console.warn('Share API failed, falling back to clipboard:', err);
         await performClipboardFallback();
       }
     } else {
@@ -255,7 +246,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
                 text: "گزارش گفتگوی هوشمند - بیمه دی",
                 bold: true,
                 size: 32,
-                font: "Vazirmatn" // Fallback font
+                font: "Vazirmatn"
               }),
             ],
             alignment: docx.AlignmentType.CENTER,
@@ -300,7 +291,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
                 })
             ] : []),
             new docx.Paragraph({
-              children: [], // Spacer
+              children: [],
               border: { bottom: { style: docx.BorderStyle.SINGLE, size: 1, color: "CCCCCC" } }
             })
           ])
@@ -360,7 +351,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
     });
   };
 
-  // Custom Markdown Components with Table Support and Styling
   const markdownComponents = {
     p: ({ children, ...props }: any) => (
       <p className="mb-3 last:mb-0 break-words" {...props}>
@@ -391,7 +381,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
     ol: ({node, ...props}: any) => <ol className="list-decimal list-inside my-2 space-y-2 marker:text-day-teal" {...props} />,
     a: ({node, ...props}: any) => <a className="text-day-teal hover:text-day-dark hover:underline underline-offset-4 decoration-1 break-all transition-colors" {...props} />,
     code: ({node, ...props}: any) => <code className="bg-gray-100 px-1 rounded text-sm font-mono text-red-500" {...props} />,
-    // Table Support
     table: ({node, ...props}: any) => (
       <div className="overflow-x-auto my-4 rounded-lg border border-gray-200">
         <table className="min-w-full divide-y divide-gray-200 text-sm" {...props} />
@@ -404,7 +393,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
     td: ({node, ...props}: any) => <td className="px-4 py-3 whitespace-nowrap text-gray-700 border-l border-gray-100 last:border-0" {...props} />,
   };
 
-  // Reusable Note Component
   const BookmarkNote = ({ msg }: { msg: Message }) => {
     const isEditing = editingNoteId === msg.id;
 
@@ -449,7 +437,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
       );
     }
 
-    // Show "Add Note" button if no note exists but it is bookmarked
     return (
        <div className="mt-2 flex justify-end">
          <button 
@@ -466,13 +453,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
 
   return (
     <div className="flex flex-col flex-1 bg-day-bg h-full relative overflow-hidden">
-      
-      {/* --- PREVIEW MODAL (PRINT AREA) --- */}
+      {/* ... Preview Modal (Same as before) ... */}
       {isPreviewOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 md:p-8 animate-fade-in">
           <div className="bg-white w-full max-w-4xl h-[90vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden">
             
-            {/* Modal Header */}
             <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
               <div className="flex items-center gap-2 text-day-dark">
                 <Eye size={20} />
@@ -483,7 +468,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
               </button>
             </div>
 
-            {/* Modal Toolbar */}
             <div className="p-3 border-b border-gray-100 bg-white flex gap-2 justify-end flex-wrap">
               {exportSuccess && (
                 <span className="text-green-600 text-sm font-bold flex items-center px-3 animate-pulse">{exportSuccess}</span>
@@ -505,21 +489,18 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
               </button>
             </div>
 
-            {/* DOCUMENT PREVIEW (Scrollable) */}
             <div className="flex-1 overflow-y-auto bg-gray-100 p-4 md:p-8">
               <div 
                 id="print-area" 
                 className="bg-white shadow-xl mx-auto p-8 md:p-12 min-h-full max-w-[210mm] text-black"
                 style={{ fontFamily: 'Vazirmatn, sans-serif' }}
               >
-                {/* Document Header */}
                 <div className="text-center border-b-2 border-day-teal pb-6 mb-8">
                    <h1 className="text-2xl font-black text-day-dark mb-2">گزارش گفتگوی هوشمند</h1>
                    <div className="text-sm text-gray-500">بیمه دی - دستیار تحلیل بیمه‌نامه</div>
                    <div className="text-xs text-gray-400 mt-1">{new Date().toLocaleDateString('fa-IR')}</div>
                 </div>
 
-                {/* Content */}
                 <div className="space-y-6">
                   {displayMessages.map((msg) => (
                     <div key={msg.id} className="border-b border-gray-100 pb-4 last:border-0">
@@ -546,7 +527,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
                   ))}
                 </div>
 
-                {/* Footer */}
                 <div className="mt-12 pt-4 border-t border-gray-200 text-center text-[10px] text-gray-400">
                   این سند توسط هوش مصنوعی بیمه دی تولید شده است.
                 </div>
@@ -557,12 +537,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
         </div>
       )}
 
-      {/* --- STICKY HEADER TOOLBAR (Merged Actions & Search) --- */}
+      {/* ... Sticky Header ... */}
       <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm transition-all">
         <div className="max-w-5xl mx-auto p-3 flex items-center gap-3">
             
             {isSearchOpen ? (
-              // Search Mode Toolbar
               <div className="flex-1 flex items-center gap-3 animate-fade-in">
                   <div className="relative flex-1">
                     <input
@@ -598,7 +577,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
                   </button>
               </div>
             ) : (
-               // Standard Action Toolbar
                <div className="flex-1 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                       <button 
@@ -641,7 +619,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
         </div>
       </div>
 
-      {/* --- SCROLL TO TOP BUTTON --- */}
       {showScrollTop && (
         <button
           onClick={scrollToTop}
@@ -652,7 +629,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
         </button>
       )}
 
-      {/* --- MESSAGES CONTAINER --- */}
       <div ref={containerRef} className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar no-print scroll-smooth">
         <div className="max-w-5xl mx-auto space-y-8 pb-4">
           {messages.length === 0 && (
@@ -694,9 +670,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
                 id={`msg-${msg.id}`}
                 className={`flex w-full transition-colors duration-500 ${isCurrentMatch ? 'bg-yellow-50/50 -mx-4 px-4 py-2 rounded-lg' : ''} ${msg.role === Role.USER ? 'justify-start' : 'justify-end'}`}
               >
-                <div className={`flex max-w-[90%] md:max-w-[80%] lg:max-w-[75%] xl:max-w-[70%] gap-3 md:gap-4 group relative ${msg.role === Role.USER ? 'flex-row' : 'flex-row-reverse'}`}>
+                <div className="flex max-w-[90%] md:max-w-[80%] lg:max-w-[75%] xl:max-w-[70%] gap-3 md:gap-4 group relative">
                   
-                  {/* User Message Bookmark Button (Outside Bubble) */}
                   {msg.role === Role.USER && (
                     <button 
                       onClick={() => onToggleBookmark(msg.id)}
@@ -719,7 +694,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
                       : 'bg-white text-gray-800 rounded-2xl rounded-tl-sm border border-gray-100'}
                     ${msg.isError ? 'border-day-accent/30 bg-red-50 text-day-accent' : ''}
                   `}>
-                    {/* AI Message Bookmark (Ribbon) */}
                     {msg.role === Role.MODEL && msg.isBookmarked && (
                       <div className="absolute -left-6 top-3 bg-yellow-400 w-16 h-4 -rotate-45 flex justify-center items-center shadow-sm z-10"></div>
                     )}
@@ -730,7 +704,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
                           {msg.text}
                         </ReactMarkdown>
                         
-                        {/* Bookmark Note for AI Message */}
                         {msg.isBookmarked && (
                           <BookmarkNote msg={msg} />
                         )}
@@ -740,7 +713,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
                             
                             <button
                               onClick={() => onToggleBookmark(msg.id)}
-                              className={`flex items-center gap-1.5 transition-colors p-2 rounded ${msg.isBookmarked ? 'text-yellow-600 bg-yellow-50' : 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'}`}
+                              className={`flex items-center gap-1.5 transition-colors px-2 py-1 rounded ${msg.isBookmarked ? 'text-yellow-600 bg-yellow-50' : 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'}`}
                               title={msg.isBookmarked ? "حذف نشان" : "نشان کردن"}
                             >
                               <Bookmark size={16} className={msg.isBookmarked ? "fill-current" : ""} />
@@ -748,10 +721,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
                             
                             <div className="w-px h-4 bg-gray-300 self-center mx-1"></div>
 
-                            {/* Share Button */}
                             <button
                               onClick={() => handleShare(msg)}
-                              className="flex items-center gap-1.5 text-gray-400 hover:text-blue-500 transition-colors p-2 rounded hover:bg-blue-50"
+                              className="flex items-center gap-1.5 text-gray-400 hover:text-blue-500 transition-colors px-2 py-1 rounded hover:bg-blue-50"
                               title="اشتراک‌گذاری"
                             >
                               {sharedId === msg.id ? (
@@ -771,7 +743,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
 
                             <button
                               onClick={() => handleCopy(msg.id, msg.text)}
-                              className="flex items-center gap-1.5 text-gray-400 hover:text-day-teal transition-colors p-2 rounded hover:bg-cyan-50"
+                              className="flex items-center gap-1.5 text-gray-400 hover:text-day-teal transition-colors px-2 py-1 rounded hover:bg-cyan-50"
                               title="کپی متن"
                             >
                               {copiedId === msg.id ? (
@@ -792,7 +764,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
                     ) : (
                       <div className="whitespace-pre-wrap break-words">
                         <HighlightText text={msg.text} />
-                        {/* Bookmark Note for User Message */}
                         {msg.isBookmarked && (
                           <BookmarkNote msg={msg} />
                         )}
@@ -807,7 +778,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
 
           {isLoading && (
             <div className="flex w-full justify-end animate-fade-in">
-              <div className="flex gap-4 flex-row-reverse max-w-[90%] md:max-w-[80%]">
+              <div className="flex gap-4 max-w-[90%] md:max-w-[80%]">
                   <div className="w-8 h-8 md:w-10 md:h-10 rounded-2xl bg-white text-day-teal border border-gray-100 flex items-center justify-center shrink-0 shadow-sm">
                     <Bot size={20} className="md:w-6 md:h-6" />
                   </div>
