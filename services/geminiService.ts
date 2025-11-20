@@ -2,11 +2,12 @@ import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { KnowledgeSource, Role, Message } from '../types';
 
 const getClient = () => {
-  // Hardcoded API Key for Demo Deployment
+  // Hardcoded API Key for Demo/Presentation as requested
+  // Security Note: In a production app, restrict this key in Google Cloud Console to specific domains.
   const apiKey = 'AIzaSyD9YiNy9aXFqDlri-V2VRsnTHqwYZxDto8';
   
   if (!apiKey) {
-    throw new Error("کلید API یافت نشد.");
+    throw new Error("کلید API تنظیم نشده است.");
   }
   return new GoogleGenAI({ apiKey });
 };
