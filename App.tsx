@@ -34,6 +34,9 @@ const STORAGE_KEYS = {
   MODEL: 'bimeh_day_selected_model'
 };
 
+// Helper function to reverse string for simple obfuscation
+const reverseString = (str: string) => str.split('').reverse().join('');
+
 const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
@@ -77,7 +80,17 @@ const App: React.FC = () => {
 
   // User API Key State
   const [userApiKey, setUserApiKey] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_KEYS.API_KEY) || '';
+    const saved = localStorage.getItem(STORAGE_KEYS.API_KEY);
+    if (!saved) return '';
+    
+    // Legacy check: If it starts with 'AIza', it was stored in plain text (old version).
+    // We return it as is, and the useEffect will re-save it in reverse shortly.
+    if (saved.trim().startsWith('AIza')) {
+      return saved;
+    }
+
+    // Otherwise, assume it is stored in reverse (obfuscated), so we reverse it back to normal
+    return reverseString(saved);
   });
 
   // Model State
@@ -101,10 +114,11 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks)); }, [tasks]);
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(chatHistory)); }, [chatHistory]);
   
-  // Persist API Key
+  // Persist API Key (Obfuscated)
   useEffect(() => {
     if (userApiKey) {
-      localStorage.setItem(STORAGE_KEYS.API_KEY, userApiKey);
+      // Store in reverse to prevent plain-text scraping from local storage
+      localStorage.setItem(STORAGE_KEYS.API_KEY, reverseString(userApiKey));
     } else {
       localStorage.removeItem(STORAGE_KEYS.API_KEY);
     }
