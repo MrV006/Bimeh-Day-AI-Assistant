@@ -304,8 +304,8 @@ const App: React.FC = () => {
       {/* API Key Modal */}
       {showApiKeyModal && (
         <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-            <div className="bg-day-dark p-4 flex justify-between items-center">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="bg-day-dark p-4 flex justify-between items-center sticky top-0 z-10">
                 <div className="flex items-center gap-2 text-white">
                     <Key size={20} />
                     <h3 className="font-bold">تنظیم کلید هوش مصنوعی</h3>
@@ -350,22 +350,40 @@ const App: React.FC = () => {
                         {userApiKey && !tempApiKey ? 'بستن و استفاده از کلید فعلی' : 'ذخیره و اتصال'}
                     </button>
 
-                    <div className="flex justify-between items-center pt-2">
-                         <a 
-                            href="https://aistudio.google.com/app/apikey" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-[11px] text-day-teal hover:underline"
-                        >
-                            دریافت کلید از Google AI Studio
-                            <ExternalLink size={12} />
-                        </a>
-                        {userApiKey && (
-                            <button onClick={handleClearApiKey} className="text-[11px] text-red-500 hover:text-red-700">
+                    <div className="border-t border-gray-100 my-4"></div>
+
+                    {/* Step by Step Guide */}
+                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 text-xs text-gray-600">
+                        <p className="font-bold text-day-dark mb-2 flex items-center gap-1">
+                             <ExternalLink size={12} />
+                             راهنمای دریافت رایگان کلید:
+                        </p>
+                        <ol className="list-decimal list-inside space-y-2 marker:text-day-teal marker:font-bold">
+                            <li>
+                                <span>فیلترشکن (VPN) خود را روشن کنید.</span>
+                            </li>
+                            <li>
+                                وارد سایت <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-day-teal underline font-bold hover:text-day-dark">Google AI Studio</a> شوید.
+                            </li>
+                            <li>
+                                روی دکمه آبی <span className="font-bold bg-blue-100 text-blue-700 px-1 rounded">Create API Key</span> کلیک کنید.
+                            </li>
+                            <li>
+                                گزینه <b>Create API key in new project</b> را بزنید.
+                            </li>
+                            <li>
+                                کد تولید شده (شروع با AIza) را کپی و در کادر بالا وارد کنید.
+                            </li>
+                        </ol>
+                    </div>
+
+                    {userApiKey && (
+                         <div className="text-center pt-2">
+                            <button onClick={handleClearApiKey} className="text-[11px] text-red-500 hover:text-red-700 underline">
                                 حذف کلید ذخیره شده
                             </button>
-                        )}
-                    </div>
+                         </div>
+                    )}
                 </div>
             </div>
           </div>
@@ -389,7 +407,7 @@ const App: React.FC = () => {
       )}
 
       {/* Mobile Header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 flex items-center px-4 z-20 shadow-sm justify-between">
+      <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 flex items-center px-4 z-40 shadow-sm justify-between">
         <div className="flex items-center gap-2">
              <button onClick={toggleSidebar} className="text-gray-600 hover:text-day-teal transition-colors p-2">
                 <Menu size={24} />
