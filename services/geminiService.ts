@@ -2,9 +2,11 @@ import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { KnowledgeSource, Role, Message } from '../types';
 
 const getClient = () => {
-  const apiKey = process.env.API_KEY;
+  // Hardcoded API Key for Demo Deployment
+  const apiKey = 'AIzaSyD9YiNy9aXFqDlri-V2VRsnTHqwYZxDto8';
+  
   if (!apiKey) {
-    throw new Error("کلید API یافت نشد. لطفاً تنظیمات برنامه را بررسی کنید.");
+    throw new Error("کلید API یافت نشد.");
   }
   return new GoogleGenAI({ apiKey });
 };
