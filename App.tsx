@@ -3,8 +3,8 @@ import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import InputArea from './components/InputArea';
 import { generateInsuranceResponse } from './services/geminiService';
-import { Message, KnowledgeSource, Role, Task, ChatSession } from './types';
-import { Menu, RefreshCw } from './components/Icons';
+import { Message, KnowledgeSource, Role, Task, ChatSession, ModelId } from './types';
+import { Menu, RefreshCw, Key, X, ExternalLink, CheckCircle } from './components/Icons';
 
 const INITIAL_SOURCES: KnowledgeSource[] = [
   {
@@ -29,7 +29,9 @@ const STORAGE_KEYS = {
   MESSAGES: 'bimeh_day_messages',
   SOURCES: 'bimeh_day_sources',
   TASKS: 'bimeh_day_tasks',
-  HISTORY: 'bimeh_day_chat_history'
+  HISTORY: 'bimeh_day_chat_history',
+  API_KEY: 'bimeh_day_user_api_key',
+  MODEL: 'bimeh_day_selected_model'
 };
 
 const App: React.FC = () => {
@@ -73,6 +75,19 @@ const App: React.FC = () => {
     }
   });
 
+  // User API Key State
+  const [userApiKey, setUserApiKey] = useState<string>(() => {
+    return localStorage.getItem(STORAGE_KEYS.API_KEY) || '';
+  });
+
+  // Model State
+  const [selectedModel, setSelectedModel] = useState<ModelId>(() => {
+    return (localStorage.getItem(STORAGE_KEYS.MODEL) as ModelId) || 'gemini-2.0-flash';
+  });
+
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [tempApiKey, setTempApiKey] = useState('');
+
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -80,133 +95,111 @@ const App: React.FC = () => {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [appVersion, setAppVersion] = useState<number | null>(null);
 
-  // Persist messages
+  // Persist data
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(messages)); }, [messages]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.SOURCES, JSON.stringify(sources)); }, [sources]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks)); }, [tasks]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(chatHistory)); }, [chatHistory]);
+  
+  // Persist API Key
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(messages));
-  }, [messages]);
+    if (userApiKey) {
+      localStorage.setItem(STORAGE_KEYS.API_KEY, userApiKey);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.API_KEY);
+    }
+  }, [userApiKey]);
 
-  // Persist sources
+  // Persist Model
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.SOURCES, JSON.stringify(sources));
-  }, [sources]);
-
-  // Persist tasks
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks));
-  }, [tasks]);
-
-  // Persist history
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(chatHistory));
-  }, [chatHistory]);
+    localStorage.setItem(STORAGE_KEYS.MODEL, selectedModel);
+  }, [selectedModel]);
 
   // Check for updates logic
   useEffect(() => {
     const checkVersion = async () => {
       try {
-        // Use a relative path. The ?t= timestamp ensures we bypass browser cache for this file
         const res = await fetch(`./version.json?t=${Date.now()}`);
         if (!res.ok) return;
-        
         const data = await res.json();
         const latestTimestamp = data.timestamp;
-
         if (appVersion === null) {
-          // First load, set current version
           setAppVersion(latestTimestamp);
         } else if (latestTimestamp > appVersion) {
-          // Server has newer version
           setUpdateAvailable(true);
         }
-      } catch (e) {
-        console.error("Version check failed (dev mode maybe?)", e);
-      }
+      } catch (e) { /* ignore */ }
     };
-
-    // Check immediately on mount
     checkVersion();
-
-    // Check every 60 seconds
     const interval = setInterval(checkVersion, 60 * 1000);
-
-    // Also check when tab becomes visible (user returns to app)
-    const handleVisibilityChange = () => {
-        if (document.visibilityState === 'visible') {
-            checkVersion();
-        }
-    };
+    const handleVisibilityChange = () => { if (document.visibilityState === 'visible') checkVersion(); };
     document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-        clearInterval(interval);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
+    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', handleVisibilityChange); };
   }, [appVersion]);
 
-  const handleUpdateApp = () => {
-      // Reloading the page will fetch the new index.html (due to no-cache headers) and new assets
-      window.location.reload();
-  };
-
+  const handleUpdateApp = () => window.location.reload();
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
+  const handleSaveApiKey = () => {
+    setUserApiKey(tempApiKey);
+    setShowApiKeyModal(false);
+    setTempApiKey('');
+    // Optional: trigger a retry or just let the user try sending again
+    alert('کلید API با موفقیت ذخیره شد. لطفاً مجدداً پیام خود را ارسال کنید.');
+  };
+
+  const handleClearApiKey = () => {
+    if (window.confirm('آیا می‌خواهید کلید شخصی خود را حذف کنید و از کلید پیش‌فرض استفاده کنید؟')) {
+      setUserApiKey('');
+      setTempApiKey('');
+    }
+  };
+
+  // --- Chat & History Logic (Same as before) ---
   const handleNewChat = () => {
     if (messages.length > 0) {
-      // Create a title from the first user message or generic date
       const firstUserMsg = messages.find(m => m.role === Role.USER);
       const title = firstUserMsg 
         ? (firstUserMsg.text.slice(0, 30) + (firstUserMsg.text.length > 30 ? '...' : ''))
         : `گفتگو ${new Date().toLocaleDateString('fa-IR')}`;
-
       const newSession: ChatSession = {
         id: Date.now().toString(),
         title: title,
         messages: messages,
         createdAt: Date.now()
       };
-
       setChatHistory(prev => [newSession, ...prev]);
       setMessages([]);
     }
   };
-
   const handleLoadChat = (session: ChatSession) => {
     if (messages.length > 0) {
-      if (window.confirm('گفتگوی فعلی ذخیره نشده است. آیا می‌خواهید آن را آرشیو کنید؟')) {
-         handleNewChat();
-      }
+      if (window.confirm('گفتگوی فعلی ذخیره نشده است. آیا می‌خواهید آن را آرشیو کنید؟')) handleNewChat();
     }
     setMessages(session.messages);
-    // Close sidebar on mobile after loading
     if (window.innerWidth < 768) setIsSidebarOpen(false);
   };
-
-  const handleDeleteChat = (sessionId: string) => {
-    // Robust comparison: Convert both to string to handle potential number/string mismatches from storage
-    setChatHistory(prev => prev.filter(s => String(s.id) !== String(sessionId)));
-  };
-
+  const handleDeleteChat = (sessionId: string) => setChatHistory(prev => prev.filter(s => String(s.id) !== String(sessionId)));
   const handleClearHistory = () => {
     if (window.confirm('آیا مطمئن هستید که می‌خواهید تمام تاریخچه گفتگوها را حذف کنید؟')) {
       setChatHistory([]);
-      // Effect hook will update localStorage automatically, but we remove explicit key for safety
       localStorage.removeItem(STORAGE_KEYS.HISTORY);
     }
   };
-
   const handleClearCache = () => {
     if (window.confirm('آیا مطمئن هستید؟ تمامی تنظیمات، تاریخچه و منابع پاک خواهند شد.')) {
-      // 1. Remove all items from localStorage
       localStorage.removeItem(STORAGE_KEYS.MESSAGES);
       localStorage.removeItem(STORAGE_KEYS.SOURCES);
       localStorage.removeItem(STORAGE_KEYS.TASKS);
       localStorage.removeItem(STORAGE_KEYS.HISTORY);
-      
-      // 2. Reset all states to initial values to update UI immediately
+      localStorage.removeItem(STORAGE_KEYS.API_KEY);
+      localStorage.removeItem(STORAGE_KEYS.MODEL);
       setMessages([]);
       setSources(INITIAL_SOURCES);
       setTasks([]);
       setChatHistory([]);
+      setUserApiKey('');
+      setSelectedModel('gemini-2.0-flash');
     }
   };
 
@@ -217,7 +210,6 @@ const App: React.FC = () => {
       text: text,
       timestamp: Date.now()
     };
-
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
 
@@ -225,7 +217,9 @@ const App: React.FC = () => {
       const responseText = await generateInsuranceResponse(
         [...messages, userMsg],
         text,
-        sources
+        sources,
+        userApiKey, // Pass the user API key
+        selectedModel // Pass selected model
       );
 
       const botMsg: Message = {
@@ -236,66 +230,148 @@ const App: React.FC = () => {
       };
       setMessages(prev => [...prev, botMsg]);
     } catch (error: any) {
-      const errorMessage = error.message || "متاسفانه خطایی در ارتباط با سرویس رخ داده است. لطفا دوباره تلاش کنید.";
-      
-      const errorMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: Role.MODEL,
-        text: errorMessage,
-        timestamp: Date.now(),
-        isError: true
-      };
-      setMessages(prev => [...prev, errorMsg]);
+      // Check for the specific flag thrown by the service
+      if (error.message === "API_KEY_INVALID") {
+        setShowApiKeyModal(true);
+        const errorMsg: Message = {
+            id: (Date.now() + 1).toString(),
+            role: Role.MODEL,
+            text: "خطای دسترسی به هوش مصنوعی. لطفاً کلید API خود را بررسی یا وارد کنید. (پنجره تنظیمات باز شد)",
+            timestamp: Date.now(),
+            isError: true
+        };
+        setMessages(prev => [...prev, errorMsg]);
+      } else {
+        const errorMessage = error.message || "متاسفانه خطایی در ارتباط با سرویس رخ داده است.";
+        const errorMsg: Message = {
+            id: (Date.now() + 1).toString(),
+            role: Role.MODEL,
+            text: errorMessage,
+            timestamp: Date.now(),
+            isError: true
+        };
+        setMessages(prev => [...prev, errorMsg]);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleToggleBookmark = (id: string) => {
-    setMessages(prev => prev.map(msg => 
-      msg.id === id ? { ...msg, isBookmarked: !msg.isBookmarked } : msg
-    ));
+  // --- Retry Logic ---
+
+  const handleRetry = () => {
+    // Find last user message
+    // Polyfill for findLastIndex to support older environments
+    let lastUserMessageIndex = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === Role.USER) {
+        lastUserMessageIndex = i;
+        break;
+      }
+    }
+    
+    if (lastUserMessageIndex === -1) return;
+
+    const lastUserMessage = messages[lastUserMessageIndex];
+    
+    // Remove the error message (usually the last one) and any messages after the last user message
+    setMessages(prev => prev.slice(0, lastUserMessageIndex));
+    
+    // Resend
+    handleSendMessage(lastUserMessage.text);
   };
 
-  const handleUpdateBookmarkNote = (id: string, note: string) => {
-    setMessages(prev => prev.map(msg => 
-      msg.id === id ? { ...msg, bookmarkNote: note } : msg
-    ));
+  const handleSwitchModelAndRetry = () => {
+    setSelectedModel('gemini-1.5-flash');
+    // Use setTimeout to ensure state update processes before retry logic triggers
+    setTimeout(() => handleRetry(), 100);
   };
 
-  // Source Management Handlers
-  const handleAddSource = (source: KnowledgeSource) => {
-    setSources(prev => [source, ...prev]);
-  };
 
-  const handleToggleSource = (id: string) => {
-    setSources(prev => prev.map(s => 
-      s.id === id ? { ...s, isActive: !s.isActive } : s
-    ));
-  };
-
-  const handleDeleteSource = (id: string) => {
-    setSources(prev => prev.filter(s => s.id !== id));
-  };
-
-  // Task Management Handlers
-  const handleAddTask = (task: Task) => {
-    setTasks(prev => [task, ...prev]);
-  };
-
-  const handleToggleTask = (id: string) => {
-    setTasks(prev => prev.map(t => 
-      t.id === id ? { ...t, isCompleted: !t.isCompleted } : t
-    ));
-  };
-
-  const handleDeleteTask = (id: string) => {
-    setTasks(prev => prev.filter(t => t.id !== id));
-  };
+  // ... Bookmark & Task handlers (Same as before) ...
+  const handleToggleBookmark = (id: string) => setMessages(prev => prev.map(msg => msg.id === id ? { ...msg, isBookmarked: !msg.isBookmarked } : msg));
+  const handleUpdateBookmarkNote = (id: string, note: string) => setMessages(prev => prev.map(msg => msg.id === id ? { ...msg, bookmarkNote: note } : msg));
+  const handleAddSource = (source: KnowledgeSource) => setSources(prev => [source, ...prev]);
+  const handleToggleSource = (id: string) => setSources(prev => prev.map(s => s.id === id ? { ...s, isActive: !s.isActive } : s));
+  const handleDeleteSource = (id: string) => setSources(prev => prev.filter(s => s.id !== id));
+  const handleAddTask = (task: Task) => setTasks(prev => [task, ...prev]);
+  const handleToggleTask = (id: string) => setTasks(prev => prev.map(t => t.id === id ? { ...t, isCompleted: !t.isCompleted } : t));
+  const handleDeleteTask = (id: string) => setTasks(prev => prev.filter(t => t.id !== id));
 
   return (
     <div className="flex h-full w-full bg-day-bg relative font-sans overflow-hidden">
       
+      {/* API Key Modal */}
+      {showApiKeyModal && (
+        <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div className="bg-day-dark p-4 flex justify-between items-center">
+                <div className="flex items-center gap-2 text-white">
+                    <Key size={20} />
+                    <h3 className="font-bold">تنظیم کلید هوش مصنوعی</h3>
+                </div>
+                <button onClick={() => setShowApiKeyModal(false)} className="text-white/70 hover:text-white">
+                    <X size={20} />
+                </button>
+            </div>
+            
+            <div className="p-6">
+                <p className="text-sm text-gray-600 leading-relaxed mb-4 text-justify">
+                    به نظر می‌رسد کلید پیش‌فرض برنامه به سقف مجاز رسیده یا منقضی شده است. برای استفاده پایدار و رایگان، لطفاً کلید اختصاصی خود را وارد کنید.
+                </p>
+
+                <div className="bg-cyan-50 border border-cyan-100 rounded-xl p-3 mb-6 flex items-start gap-3">
+                    <div className="bg-white p-1.5 rounded-lg text-day-teal shrink-0 shadow-sm">
+                         <CheckCircle size={20} />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                         <span className="text-xs font-bold text-day-dark">کاملاً رایگان و امن</span>
+                         <span className="text-[10px] text-gray-500">کلید شما فقط در مرورگر خودتان ذخیره می‌شود.</span>
+                    </div>
+                </div>
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-2">کلید API شما:</label>
+                        <input 
+                            type="password" 
+                            placeholder="AIzaSy..." 
+                            value={tempApiKey || userApiKey}
+                            onChange={(e) => setTempApiKey(e.target.value)}
+                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:border-day-teal focus:ring-2 focus:ring-cyan-100 outline-none dir-ltr text-left"
+                        />
+                    </div>
+                    
+                    <button 
+                        onClick={handleSaveApiKey}
+                        disabled={!tempApiKey && !userApiKey}
+                        className="w-full bg-day-teal hover:bg-day-dark text-white py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-cyan-100 disabled:bg-gray-300 disabled:shadow-none"
+                    >
+                        {userApiKey && !tempApiKey ? 'بستن و استفاده از کلید فعلی' : 'ذخیره و اتصال'}
+                    </button>
+
+                    <div className="flex justify-between items-center pt-2">
+                         <a 
+                            href="https://aistudio.google.com/app/apikey" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-[11px] text-day-teal hover:underline"
+                        >
+                            دریافت کلید از Google AI Studio
+                            <ExternalLink size={12} />
+                        </a>
+                        {userApiKey && (
+                            <button onClick={handleClearApiKey} className="text-[11px] text-red-500 hover:text-red-700">
+                                حذف کلید ذخیره شده
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Update Notification Toast */}
       {updateAvailable && (
         <div 
@@ -314,12 +390,31 @@ const App: React.FC = () => {
 
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 flex items-center px-4 z-20 shadow-sm justify-between">
-        {/* Swap order: Menu on Right (Sidebar side), Logo on Left */}
-        <button onClick={toggleSidebar} className="text-gray-600 hover:text-day-teal transition-colors p-2">
-          <Menu size={24} />
-        </button>
+        <div className="flex items-center gap-2">
+             <button onClick={toggleSidebar} className="text-gray-600 hover:text-day-teal transition-colors p-2">
+                <Menu size={24} />
+             </button>
+             <button 
+                onClick={() => setShowApiKeyModal(true)} 
+                className={`p-2 rounded-lg transition-colors ${userApiKey ? 'text-green-600 bg-green-50' : 'text-gray-400 bg-gray-50'}`}
+             >
+                <Key size={20} />
+             </button>
+        </div>
         <span className="font-black text-lg text-day-teal tracking-tight">بیمه دی</span>
       </div>
+
+      {/* Desktop/Tablet API Key Button (Overlay on Sidebar or absolute) */}
+      {!isSidebarOpen && (
+         <button 
+            onClick={() => setShowApiKeyModal(true)}
+            className={`fixed top-4 left-4 z-30 p-2 rounded-xl shadow-sm transition-all hidden md:flex items-center gap-2 ${userApiKey ? 'bg-white text-green-600 border border-green-200' : 'bg-white text-gray-400 border border-gray-200 hover:border-day-teal hover:text-day-teal'}`}
+            title="تنظیمات API Key"
+         >
+            <Key size={20} />
+            {userApiKey && <span className="text-xs font-bold">متصل</span>}
+         </button>
+      )}
 
       <Sidebar 
         isOpen={isSidebarOpen} 
@@ -327,6 +422,8 @@ const App: React.FC = () => {
         sources={sources}
         tasks={tasks}
         chatHistory={chatHistory}
+        selectedModel={selectedModel}
+        onSelectModel={setSelectedModel}
         onAddSource={handleAddSource}
         onToggleSource={handleToggleSource}
         onDeleteSource={handleDeleteSource}
@@ -344,9 +441,13 @@ const App: React.FC = () => {
         <ChatArea 
           messages={messages} 
           isLoading={isLoading} 
+          selectedModel={selectedModel}
           onQuickPrompt={handleSendMessage}
           onToggleBookmark={handleToggleBookmark}
           onUpdateBookmarkNote={handleUpdateBookmarkNote}
+          onRetry={handleRetry}
+          onSwitchModelRetry={handleSwitchModelAndRetry}
+          onOpenSettings={() => setShowApiKeyModal(true)}
         />
         <InputArea onSendMessage={handleSendMessage} isLoading={isLoading} />
       </main>

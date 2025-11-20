@@ -47,7 +47,11 @@ import {
   Link,
   Github,
   Phone,
-  RefreshCw
+  RefreshCw,
+  Key,
+  ExternalLink,
+  Cpu,
+  RefreshCcw
 } from 'lucide-react';
 
 export {
@@ -98,5 +102,9 @@ export {
   Link,
   Github,
   Phone,
-  RefreshCw
+  RefreshCw,
+  Key,
+  ExternalLink,
+  Cpu,
+  RefreshCcw
 };

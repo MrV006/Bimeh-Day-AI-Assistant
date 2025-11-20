@@ -3,6 +3,8 @@ export enum Role {
   MODEL = 'model'
 }
 
+export type ModelId = 'gemini-2.0-flash' | 'gemini-1.5-flash';
+
 export interface Message {
   id: string;
   role: Role;

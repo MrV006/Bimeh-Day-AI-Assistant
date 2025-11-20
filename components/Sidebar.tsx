@@ -1,6 +1,6 @@
 import React, { useState, DragEvent, useRef, useMemo } from 'react';
-import { KnowledgeSource, Task, ChatSession } from '../types';
-import { Plus, FileText, Trash2, CheckCircle, Database, XCircle, ShieldCheck, UploadCloud, Loader, MessageSquarePlus, X, Search, ListTodo, Calendar, Clock, Square, CheckSquare, ArrowUpDown, History, ArchiveRestore, Eraser, MessageSquare, Globe, Link, Github, Phone } from './Icons';
+import { KnowledgeSource, Task, ChatSession, ModelId } from '../types';
+import { Plus, FileText, Trash2, CheckCircle, Database, XCircle, ShieldCheck, UploadCloud, Loader, MessageSquarePlus, X, Search, ListTodo, Calendar, Clock, Square, CheckSquare, ArrowUpDown, History, ArchiveRestore, Eraser, MessageSquare, Globe, Link, Github, Phone, Key, Cpu, Check, ChevronDown } from './Icons';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
@@ -13,6 +13,8 @@ interface SidebarProps {
   sources: KnowledgeSource[];
   tasks: Task[];
   chatHistory: ChatSession[];
+  selectedModel: ModelId;
+  onSelectModel: (model: ModelId) => void;
   onAddSource: (source: KnowledgeSource) => void;
   onToggleSource: (id: string) => void;
   onDeleteSource: (id: string) => void;
@@ -36,6 +38,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   sources,
   tasks,
   chatHistory,
+  selectedModel,
+  onSelectModel,
   onAddSource,
   onToggleSource,
   onDeleteSource,
@@ -49,6 +53,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onClearCache
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('sources');
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   
   // Source State
   const [isAdding, setIsAdding] = useState(false);
@@ -330,21 +335,56 @@ const Sidebar: React.FC<SidebarProps> = ({
       `}>
         
         {/* Header */}
-        <div className="p-6 border-b border-white/10 bg-gradient-to-br from-day-dark to-day-teal text-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <ShieldCheck size={32} className="text-white drop-shadow-sm" />
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">هوش مصنوعی بیمه دی</h1>
-              <p className="text-xs text-cyan-100 opacity-90 font-light">دستیار هوشمند تحلیل بیمه‌نامه</p>
+        <div className="p-6 border-b border-white/10 bg-gradient-to-br from-day-dark to-day-teal text-white">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <ShieldCheck size={32} className="text-white drop-shadow-sm" />
+              <div>
+                <h1 className="text-xl font-bold tracking-tight">هوش مصنوعی بیمه دی</h1>
+                <p className="text-xs text-cyan-100 opacity-90 font-light">دستیار هوشمند تحلیل بیمه‌نامه</p>
+              </div>
             </div>
+            {/* Mobile Close Button */}
+            <button 
+              onClick={toggleSidebar} 
+              className="md:hidden p-1 hover:bg-white/20 rounded-full transition-colors"
+            >
+              <X size={20} className="text-white" />
+            </button>
           </div>
-          {/* Mobile Close Button */}
-          <button 
-            onClick={toggleSidebar} 
-            className="md:hidden p-1 hover:bg-white/20 rounded-full transition-colors"
-          >
-            <X size={20} className="text-white" />
-          </button>
+
+          {/* Model Selection Dropdown */}
+          <div className="relative">
+             <button 
+               onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
+               className="w-full flex items-center justify-between bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs text-white transition-colors border border-white/10"
+             >
+               <div className="flex items-center gap-2">
+                 <Cpu size={14} className="text-cyan-200" />
+                 <span>مدل: {selectedModel === 'gemini-2.0-flash' ? 'Flash 2.0 (سریع/هوشمند)' : 'Flash 1.5 (پایدار)'}</span>
+               </div>
+               <ChevronDown size={12} className={`transition-transform ${isModelMenuOpen ? 'rotate-180' : ''}`} />
+             </button>
+
+             {isModelMenuOpen && (
+               <div className="absolute top-full right-0 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-100 py-1 text-gray-700 z-20 overflow-hidden animate-fade-in">
+                 <button 
+                   onClick={() => { onSelectModel('gemini-2.0-flash'); setIsModelMenuOpen(false); }}
+                   className="w-full px-3 py-2 text-xs text-right hover:bg-cyan-50 hover:text-day-teal flex items-center justify-between group"
+                 >
+                   <span>Flash 2.0 (پیشنهادی)</span>
+                   {selectedModel === 'gemini-2.0-flash' && <Check size={12} className="text-day-teal" />}
+                 </button>
+                 <button 
+                   onClick={() => { onSelectModel('gemini-1.5-flash'); setIsModelMenuOpen(false); }}
+                   className="w-full px-3 py-2 text-xs text-right hover:bg-cyan-50 hover:text-day-teal flex items-center justify-between"
+                 >
+                   <span>Flash 1.5 (نسخه پایدار)</span>
+                   {selectedModel === 'gemini-1.5-flash' && <Check size={12} className="text-day-teal" />}
+                 </button>
+               </div>
+             )}
+          </div>
         </div>
 
         {/* New Chat Button */}
@@ -388,6 +428,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
         </div>
 
+        {/* ... TABS CONTENT ... (Same as before) */}
         {/* === SOURCES TAB CONTENT === */}
         {activeTab === 'sources' && (
           <>
@@ -687,6 +728,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </>
         )}
 
+        {/* ... (Tasks and History Tabs same as original) ... */}
         {/* === TASKS TAB CONTENT === */}
         {activeTab === 'tasks' && (
             <>

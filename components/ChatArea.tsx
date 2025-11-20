@@ -1,16 +1,20 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Message, Role } from '../types';
-import { Bot, User, Copy, Check, Car, HeartPulse, FileCheck, Briefcase, Search, ChevronUp, ChevronDown, X, Eye, Download, Printer, FileText, ClipboardList, Bookmark, Pen, Share, ArrowUp } from './Icons';
+import { Message, Role, ModelId } from '../types';
+import { Bot, User, Copy, Check, Car, HeartPulse, FileCheck, Briefcase, Search, ChevronUp, ChevronDown, X, Eye, Download, Printer, FileText, ClipboardList, Bookmark, Pen, Share, ArrowUp, RefreshCcw, Cpu, Key } from './Icons';
 import * as docx from 'docx';
 import saveAs from 'file-saver';
 
 interface ChatAreaProps {
   messages: Message[];
   isLoading: boolean;
+  selectedModel: ModelId;
   onQuickPrompt?: (text: string) => void;
   onToggleBookmark: (id: string) => void;
   onUpdateBookmarkNote: (id: string, note: string) => void;
+  onRetry: () => void;
+  onSwitchModelRetry: () => void;
+  onOpenSettings: () => void;
 }
 
 // Define Quick Prompts Data
@@ -42,7 +46,17 @@ const escapeRegExp = (string: string) => {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
 
-const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt, onToggleBookmark, onUpdateBookmarkNote }) => {
+const ChatArea: React.FC<ChatAreaProps> = ({ 
+  messages, 
+  isLoading, 
+  selectedModel,
+  onQuickPrompt, 
+  onToggleBookmark, 
+  onUpdateBookmarkNote,
+  onRetry,
+  onSwitchModelRetry,
+  onOpenSettings
+}) => {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -704,6 +718,37 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
                           {msg.text}
                         </ReactMarkdown>
                         
+                        {/* Error Action Buttons */}
+                        {msg.isError && (
+                          <div className="mt-4 flex flex-wrap gap-2 pt-2 border-t border-red-100">
+                             <button 
+                               onClick={onRetry}
+                               className="flex items-center gap-1 text-xs bg-white text-day-dark border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors shadow-sm font-medium"
+                             >
+                               <RefreshCcw size={14} />
+                               تلاش مجدد
+                             </button>
+                             
+                             {selectedModel !== 'gemini-1.5-flash' && (
+                               <button 
+                                 onClick={onSwitchModelRetry}
+                                 className="flex items-center gap-1 text-xs bg-day-teal text-white border border-transparent px-3 py-1.5 rounded-lg hover:bg-day-dark transition-colors shadow-sm font-medium"
+                               >
+                                 <Cpu size={14} />
+                                 تلاش با مدل 1.5
+                               </button>
+                             )}
+
+                             <button 
+                               onClick={onOpenSettings}
+                               className="flex items-center gap-1 text-xs bg-gray-100 text-gray-600 border border-transparent px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                             >
+                               <Key size={14} />
+                               تنظیمات API
+                             </button>
+                          </div>
+                        )}
+
                         {msg.isBookmarked && (
                           <BookmarkNote msg={msg} />
                         )}

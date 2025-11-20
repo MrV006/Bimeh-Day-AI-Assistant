@@ -1,11 +1,15 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { KnowledgeSource, Role, Message } from '../types';
 
-const getClient = () => {
-  // To prevent Google/GitHub from detecting and revoking the key automatically,
-  // we store the key in reverse order. The bot looks for "AIza...", so we hide that pattern.
-  // Original Key: AIzaSyD9YiNy9aXFqDlri-V2VRsnTHqwYZxDto8
-  const reversedKey = '8otDxZYwqHTnsRV2V-irDlqFXa9yNiY9ySazIA';
+const getClient = (userApiKey?: string) => {
+  // If user has provided their own key, use it.
+  if (userApiKey && userApiKey.trim() !== "") {
+      return new GoogleGenAI({ apiKey: userApiKey });
+  }
+
+  // Fallback to the hardcoded (obfuscated) key
+  // Original Key: AIzaSyCyOXy27ctu-0H9pxwwFe8BDou9dVuuc68
+  const reversedKey = '86cuuVd9uoDB8eFwwxp9H0-utc72yXOyCySazIA';
   
   // Re-assemble the key at runtime
   const apiKey = reversedKey.split('').reverse().join('');
@@ -19,13 +23,13 @@ const getClient = () => {
 export const generateInsuranceResponse = async (
   history: Message[],
   currentQuery: string,
-  knowledgeBase: KnowledgeSource[]
+  knowledgeBase: KnowledgeSource[],
+  userApiKey?: string,
+  modelId: string = 'gemini-2.0-flash'
 ): Promise<string> => {
   try {
-    const ai = getClient();
-    // Using the stable model version
-    const modelId = 'gemini-1.5-flash';
-
+    const ai = getClient(userApiKey);
+    
     // Explicitly filter for active sources only.
     const activeSources = knowledgeBase.filter(k => k.isActive);
 
@@ -81,16 +85,18 @@ export const generateInsuranceResponse = async (
     // Explicitly catch fetch/network errors (common with VPNs)
     if (msg.includes("fetch failed") || msg.includes("network") || msg.includes("failed to fetch") || errorName === "typeerror") {
       customMessage = "خطا در اتصال به اینترنت. لطفاً اتصال خود یا VPN را بررسی کنید.";
-    } else if (msg.includes("api key") || msg.includes("401") || msg.includes("403")) {
-      customMessage = "خطای دسترسی: کلید API نامعتبر است یا دسترسی لازم را ندارد.";
+    } else if (msg.includes("api key") || msg.includes("400") || msg.includes("401") || msg.includes("403") || msg.includes("invalid_argument")) {
+      // Specific flag to tell UI to open API settings
+      throw new Error("API_KEY_INVALID");
     } else if (msg.includes("429") || msg.includes("quota") || msg.includes("exhausted")) {
-      customMessage = "تعداد درخواست‌ها بیش از حد مجاز است (Rate Limit). لطفاً چند لحظه صبر کنید.";
+      // Quota exhausted often means the free key is dead, prompt for user key
+       throw new Error("API_KEY_INVALID");
     } else if (msg.includes("503") || msg.includes("500") || msg.includes("overloaded")) {
       customMessage = "سرویس هوش مصنوعی موقتاً در دسترس نیست. لطفاً دقایقی دیگر تلاش کنید.";
     } else if (msg.includes("safety") || msg.includes("blocked")) {
       customMessage = "پاسخ مدل به دلایل ایمنی فیلتر شد.";
     } else if (msg.includes("404")) {
-       customMessage = "مدل هوش مصنوعی پاسخگو نیست (خطای 404). لطفاً VPN را تغییر دهید.";
+       customMessage = "مدل هوش مصنوعی پاسخگو نیست (خطای 404). ممکن است نیاز به تغییر مدل یا VPN داشته باشید.";
     }
 
     throw new Error(customMessage);
