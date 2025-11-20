@@ -3,7 +3,7 @@ import { KnowledgeSource, Role, Message } from '../types';
 
 const getClient = () => {
   // Hardcoded API Key for Demo/Presentation as requested
-  const apiKey = 'AIzaSyD9YiNy9aXFqDlri-V2VRsnTHqwYZxDto8';
+    const apiKey = 'AIzaSyA66uf-_7Uz3YUZrJb9dCrXfgALtUeynBw';
   
   if (!apiKey) {
     throw new Error("کلید API تنظیم نشده است.");
