@@ -692,15 +692,15 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
               <div 
                 key={msg.id} 
                 id={`msg-${msg.id}`}
-                className={`flex w-full transition-colors duration-500 ${isCurrentMatch ? 'bg-yellow-50/50 -mx-4 px-4 py-2 rounded-lg' : ''} ${msg.role === Role.USER ? 'justify-end' : 'justify-start'}`}
+                className={`flex w-full transition-colors duration-500 ${isCurrentMatch ? 'bg-yellow-50/50 -mx-4 px-4 py-2 rounded-lg' : ''} ${msg.role === Role.USER ? 'justify-start' : 'justify-end'}`}
               >
-                <div className={`flex max-w-[90%] md:max-w-[80%] lg:max-w-[75%] xl:max-w-[70%] gap-3 md:gap-4 group relative ${msg.role === Role.USER ? 'flex-row-reverse' : 'flex-row'}`}>
+                <div className={`flex max-w-[90%] md:max-w-[80%] lg:max-w-[75%] xl:max-w-[70%] gap-3 md:gap-4 group relative ${msg.role === Role.USER ? 'flex-row' : 'flex-row-reverse'}`}>
                   
                   {/* User Message Bookmark Button (Outside Bubble) */}
                   {msg.role === Role.USER && (
                     <button 
                       onClick={() => onToggleBookmark(msg.id)}
-                      className={`absolute top-1/2 -translate-y-1/2 -right-8 p-1.5 rounded-full transition-opacity duration-200 ${msg.isBookmarked ? 'opacity-100 text-yellow-500' : 'opacity-0 group-hover:opacity-100 text-gray-300 hover:text-yellow-500'}`}
+                      className={`absolute top-1/2 -translate-y-1/2 -left-8 p-1.5 rounded-full transition-opacity duration-200 ${msg.isBookmarked ? 'opacity-100 text-yellow-500' : 'opacity-0 group-hover:opacity-100 text-gray-300 hover:text-yellow-500'}`}
                     >
                       <Bookmark size={18} className={msg.isBookmarked ? "fill-current" : ""} />
                     </button>
@@ -740,7 +740,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
                             
                             <button
                               onClick={() => onToggleBookmark(msg.id)}
-                              className={`flex items-center gap-1.5 transition-colors px-2 py-1 rounded ${msg.isBookmarked ? 'text-yellow-600 bg-yellow-50' : 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'}`}
+                              className={`flex items-center gap-1.5 transition-colors p-2 rounded ${msg.isBookmarked ? 'text-yellow-600 bg-yellow-50' : 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'}`}
                               title={msg.isBookmarked ? "حذف نشان" : "نشان کردن"}
                             >
                               <Bookmark size={16} className={msg.isBookmarked ? "fill-current" : ""} />
@@ -751,7 +751,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
                             {/* Share Button */}
                             <button
                               onClick={() => handleShare(msg)}
-                              className="flex items-center gap-1.5 text-gray-400 hover:text-blue-500 transition-colors px-2 py-1 rounded hover:bg-blue-50"
+                              className="flex items-center gap-1.5 text-gray-400 hover:text-blue-500 transition-colors p-2 rounded hover:bg-blue-50"
                               title="اشتراک‌گذاری"
                             >
                               {sharedId === msg.id ? (
@@ -762,7 +762,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
                               ) : (
                                 <>
                                   <Share size={16} />
-                                  <span className="text-xs font-medium">اشتراک</span>
+                                  <span className="text-xs font-medium hidden md:inline">اشتراک</span>
                                 </>
                               )}
                             </button>
@@ -771,7 +771,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
 
                             <button
                               onClick={() => handleCopy(msg.id, msg.text)}
-                              className="flex items-center gap-1.5 text-gray-400 hover:text-day-teal transition-colors px-2 py-1 rounded hover:bg-cyan-50"
+                              className="flex items-center gap-1.5 text-gray-400 hover:text-day-teal transition-colors p-2 rounded hover:bg-cyan-50"
                               title="کپی متن"
                             >
                               {copiedId === msg.id ? (
@@ -782,7 +782,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
                               ) : (
                                 <>
                                   <Copy size={16} />
-                                  <span className="text-xs font-medium">کپی</span>
+                                  <span className="text-xs font-medium hidden md:inline">کپی</span>
                                 </>
                               )}
                             </button>
@@ -806,8 +806,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isLoading, onQuickPrompt,
           })}
 
           {isLoading && (
-            <div className="flex w-full justify-start animate-fade-in">
-              <div className="flex gap-4 flex-row max-w-[90%] md:max-w-[80%]">
+            <div className="flex w-full justify-end animate-fade-in">
+              <div className="flex gap-4 flex-row-reverse max-w-[90%] md:max-w-[80%]">
                   <div className="w-8 h-8 md:w-10 md:h-10 rounded-2xl bg-white text-day-teal border border-gray-100 flex items-center justify-center shrink-0 shadow-sm">
                     <Bot size={20} className="md:w-6 md:h-6" />
                   </div>
