@@ -1,3 +1,4 @@
+
 import React, { useState, DragEvent, useRef, useMemo } from 'react';
 import { KnowledgeSource, Task, ChatSession, ModelId } from '../types';
 import { AVAILABLE_MODELS } from '../services/geminiService';
@@ -140,7 +141,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       title: newTitle,
       content: newContent,
       type: addMode === 'link' ? 'link' : 'text',
-      isActive: true
+      isActive: true // Always active by default
     };
     
     onAddSource(newSource);
@@ -541,53 +542,69 @@ const Sidebar: React.FC<SidebarProps> = ({
                       key={source.id} 
                       className={`p-3 rounded-xl border transition-all duration-200 ${source.isActive ? 'border-day-light/50 bg-cyan-50/50 shadow-sm ring-1 ring-cyan-100' : 'border-gray-100 bg-gray-50 opacity-60 hover:opacity-100'}`}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 overflow-hidden flex-1 ml-2">
-                          <div className={`p-1.5 rounded-lg ${source.isActive ? 'bg-white text-day-teal' : 'bg-gray-200 text-gray-500'}`}>
+                      <div className="flex items-start justify-between gap-2">
+                         {/* Icon and Title */}
+                        <div className="flex items-start gap-2 overflow-hidden flex-1">
+                          <div className={`p-1.5 rounded-lg mt-0.5 ${source.isActive ? 'bg-white text-day-teal' : 'bg-gray-200 text-gray-500'}`}>
                             {source.type === 'link' ? <Globe size={16} className="shrink-0" /> : <FileText size={16} className="shrink-0" />}
                           </div>
-                          <span className={`text-sm font-bold truncate ${source.isActive ? 'text-day-dark' : 'text-gray-600'}`}>
-                            {highlightText(source.title, searchQuery)}
-                          </span>
-                          {source.isActive && (
-                            <div className="flex items-center gap-1 bg-green-50 border border-green-100 px-1.5 py-0.5 rounded-full text-[9px] text-green-700 shrink-0 mr-1" title="استفاده در پاسخ‌دهی">
-                                <span className="relative flex h-1.5 w-1.5">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
+                          <div className="flex flex-col min-w-0">
+                              <span className={`text-sm font-bold break-words ${source.isActive ? 'text-day-dark' : 'text-gray-600'}`}>
+                                {highlightText(source.title, searchQuery)}
+                              </span>
+                              
+                              {/* Active Indicator - Text Based */}
+                              {source.isActive && (
+                                <span className="text-[10px] text-green-600 font-medium mt-0.5 flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                                    فعال در پاسخ‌دهی
                                 </span>
-                                <span className="font-medium">فعال</span>
-                            </div>
-                          )}
+                              )}
+                          </div>
                         </div>
+
+                        {/* Delete Button */}
                         <button 
                           onClick={() => onDeleteSource(source.id)}
-                          className="text-gray-300 hover:text-day-accent transition-colors p-1 hover:bg-red-50 rounded shrink-0"
+                          className="text-gray-300 hover:text-red-500 transition-colors p-1.5 hover:bg-red-50 rounded-lg shrink-0"
+                          title="حذف سند"
                         >
                           <Trash2 size={16} />
                         </button>
                       </div>
-                      <div className="mt-2 pl-9">
-                        <div className="text-[11px] text-gray-600 leading-relaxed whitespace-pre-wrap font-light text-justify break-words">
+
+                      {/* Content Snippet */}
+                      <div className="mt-3 pl-1 pr-1">
+                        <div className="text-[11px] text-gray-600 leading-relaxed whitespace-pre-wrap font-light text-justify break-words bg-white/50 p-2 rounded-lg border border-gray-100/50">
                           {highlightText(contentToShow, searchQuery)}
                         </div>
-                        <div className="flex items-center justify-between mt-2 border-t border-black/5 pt-2">
+                      </div>
+                      
+                      {/* Footer Actions */}
+                      <div className="flex items-center justify-between mt-3 border-t border-black/5 pt-2">
+                            {/* Read More */}
                             {shouldTruncate ? (
                               <button 
                                 onClick={() => toggleExpand(source.id)}
-                                className="text-[10px] text-day-teal font-bold hover:underline cursor-pointer flex items-center gap-1"
+                                className="text-[10px] text-day-teal font-bold hover:underline cursor-pointer flex items-center gap-1 px-1"
                               >
-                                {isExpanded ? 'بستن' : 'مطالعه بیشتر'}
+                                {isExpanded ? 'بستن' : 'مشاهده متن کامل'}
                               </button>
                             ) : <span />}
                             
+                            {/* Clearly Visible Toggle Switch */}
                             <button 
                               onClick={() => onToggleSource(source.id)}
-                              className={`flex items-center gap-1 text-[10px] font-medium transition-colors ${source.isActive ? 'text-green-600' : 'text-gray-400 hover:text-gray-600'}`}
+                              className={`flex items-center gap-2 px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                                  source.isActive 
+                                    ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                                    : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+                                }`}
                             >
-                              {source.isActive ? (<><CheckCircle size={14} /><span>فعال</span></>) : (<><XCircle size={14} /><span>غیرفعال</span></>)}
+                              <div className={`w-3 h-3 rounded-full transition-colors ${source.isActive ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                              <span>{source.isActive ? 'وضعیت: فعال' : 'وضعیت: غیرفعال'}</span>
                             </button>
                         </div>
-                      </div>
                     </div>
                   );
                 })}
