@@ -80,6 +80,9 @@ const FALLBACK_KEYS = [
 ];
 
 const getClient = (apiKey: string) => {
+  if (apiKey) {
+    apiKey = apiKey.trim();
+  }
   if (!apiKey) {
     throw new Error("کلید API نامعتبر است.");
   }
@@ -134,8 +137,10 @@ export const generateInsuranceResponse = async (
     // If user provided a key, ONLY try that one.
     keysToTry = [userApiKey.trim()];
   } else {
-    // If no user key, try all fallback keys in order
-    keysToTry = FALLBACK_KEYS.map(k => reverseString(k));
+    // If no user key, try all fallback keys with RANDOMIZED LOAD BALANCING
+    // Shuffle the keys to distribute load and avoid hitting rate limits on the first key repeatedly
+    const shuffledKeys = [...FALLBACK_KEYS].sort(() => Math.random() - 0.5);
+    keysToTry = shuffledKeys.map(k => reverseString(k));
   }
 
   let lastError: any = null;
@@ -160,7 +165,8 @@ export const generateInsuranceResponse = async (
       if (text) return text;
       
     } catch (error: any) {
-      console.warn(`Attempt failed with key ending in ...${apiKey.slice(-4)} for model ${modelId}`, error);
+      const keySuffix = apiKey ? apiKey.slice(-4) : '****';
+      console.warn(`Attempt failed with key ending in ...${keySuffix} for model ${modelId}`, error);
       lastError = error;
 
       // Check specific errors that warrant trying the next key
