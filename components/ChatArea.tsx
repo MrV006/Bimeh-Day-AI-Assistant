@@ -82,16 +82,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   // Scroll To Top State
   const [showScrollTop, setShowScrollTop] = useState(false);
   
-  // Auto-switch loading state (internal, triggered by parent's action prop, 
-  // but since parent manages the switch logic, we might infer it or just show generic loader if message is loading)
-  // However, the "Switch & Retry" action is usually instantaneous unless it checks multiple models.
-  // We will assume the parent sets isLoading=true when retrying.
+  // Auto-switch loading state
   const [isSwitching, setIsSwitching] = useState(false);
 
   const handleSwitchClick = () => {
     setIsSwitching(true);
     onSwitchModelRetry();
-    // Reset switching state after a timeout or when loading starts (which means switch logic is done and request started)
     setTimeout(() => setIsSwitching(false), 3000);
   };
 
@@ -104,7 +100,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   const matches = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const lowerQuery = searchQuery.toLowerCase();
-    // Find all messages that contain the query (within displayed messages)
     return displayMessages
       .filter(m => m.text.toLowerCase().includes(lowerQuery))
       .map(m => m.id);
@@ -113,7 +108,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   // Reset index when query changes
   useEffect(() => {
     if (matches.length > 0) {
-      setCurrentMatchIndex(matches.length - 1); // Start at the most recent match
+      setCurrentMatchIndex(matches.length - 1);
     } else {
       setCurrentMatchIndex(-1);
     }
@@ -481,11 +476,119 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
   return (
     <div className="flex flex-col flex-1 bg-day-bg h-full relative overflow-hidden">
-      {/* ... Preview Modal ... */}
-      {/* ... (Preview Modal code omitted for brevity, same as previous) ... */}
+      
+      {/* Sticky Header Toolbar */}
+      <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-2 flex items-center justify-between shadow-sm">
+         <div className="flex items-center gap-2">
+            {/* Action Buttons */}
+            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                <button 
+                  onClick={() => setShowBookmarks(!showBookmarks)} 
+                  className={`p-2 rounded-md transition-all ${showBookmarks ? 'bg-white text-yellow-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  title={showBookmarks ? "نمایش همه پیام‌ها" : "فقط نمایش نشان‌شده‌ها"}
+                >
+                  <Bookmark size={18} className={showBookmarks ? "fill-current" : ""} />
+                </button>
+                <button 
+                  onClick={() => setIsSearchOpen(!isSearchOpen)}
+                  className={`p-2 rounded-md transition-all ${isSearchOpen ? 'bg-white text-day-teal shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  title="جستجو در چت"
+                >
+                   <Search size={18} />
+                </button>
+                <button 
+                   onClick={() => setIsPreviewOpen(true)}
+                   className="p-2 rounded-md text-gray-500 hover:text-gray-700 transition-all hover:bg-white hover:shadow-sm"
+                   title="خروجی / پیش‌نمایش"
+                >
+                   <Download size={18} />
+                </button>
+            </div>
+         </div>
 
-      {/* ... Sticky Header ... */}
-      {/* ... (Sticky Header code omitted for brevity, same as previous) ... */}
+         {isSearchOpen && (
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md px-4 flex items-center gap-2 animate-fade-in">
+                <div className="flex-1 relative">
+                    <input 
+                        ref={searchInputRef}
+                        type="text" 
+                        className="w-full bg-white border border-day-teal rounded-lg pl-10 pr-4 py-2 text-sm shadow-lg focus:outline-none"
+                        placeholder="جستجو در مکالمه..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    <span className="absolute left-3 top-2.5 text-xs text-gray-400">
+                        {matches.length > 0 ? `${currentMatchIndex + 1} از ${matches.length}` : '0'}
+                    </span>
+                </div>
+                <button onClick={handleNext} className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600"><ChevronUp size={16} /></button>
+                <button onClick={handlePrev} className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600"><ChevronDown size={16} /></button>
+                <button onClick={closeSearch} className="p-2 text-gray-400 hover:text-red-500"><X size={18} /></button>
+            </div>
+         )}
+      </div>
+
+      {/* Preview Modal */}
+      {isPreviewOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white w-full max-w-3xl h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            <div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="font-bold text-day-dark flex items-center gap-2">
+                <Eye size={20} />
+                پیش‌نمایش و خروجی
+              </h3>
+              <button onClick={() => setIsPreviewOpen(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="flex-1 bg-gray-100 overflow-y-auto p-8 custom-scrollbar">
+               <div id="print-area" className="bg-white shadow-lg mx-auto max-w-[210mm] min-h-[297mm] p-[20mm] text-black">
+                  <div className="text-center border-b-2 border-gray-800 pb-4 mb-8">
+                      <h1 className="text-3xl font-black mb-2">گزارش گفتگوی هوشمند</h1>
+                      <p className="text-sm text-gray-600">بیمه دی - دستیار تحلیل بیمه‌نامه</p>
+                      <p className="text-xs text-gray-400 mt-1">{new Date().toLocaleDateString('fa-IR', {dateStyle: 'full'})}</p>
+                  </div>
+                  <div className="space-y-6">
+                      {displayMessages.map(msg => (
+                          <div key={msg.id} className="break-inside-avoid">
+                              <p className="font-bold text-sm mb-1 flex items-center gap-2">
+                                  {msg.role === Role.USER ? <span className="text-day-teal">● کاربر:</span> : <span className="text-day-accent">● هوش مصنوعی:</span>}
+                              </p>
+                              <div className="text-justify text-sm leading-7 whitespace-pre-wrap border-l-2 border-gray-100 pr-3">
+                                  {msg.text}
+                              </div>
+                              {msg.bookmarkNote && (
+                                  <div className="mt-1 text-xs text-gray-500 italic pr-3">
+                                      یادداشت: {msg.bookmarkNote}
+                                  </div>
+                              )}
+                          </div>
+                      ))}
+                  </div>
+                  <div className="mt-10 pt-4 border-t border-gray-200 text-center text-xs text-gray-400">
+                      این گزارش توسط دستیار هوشمند بیمه دی تولید شده است.
+                  </div>
+               </div>
+            </div>
+
+            <div className="bg-white p-4 border-t border-gray-200 flex flex-wrap items-center justify-between gap-4">
+               <span className="text-sm font-bold text-green-600 animate-fade-in">{exportSuccess}</span>
+               <div className="flex items-center gap-2">
+                  <button onClick={handleCopyAll} className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-bold transition-all">
+                      <ClipboardList size={18} /> کپی متن
+                  </button>
+                  <button onClick={handleWordExport} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-sm font-bold transition-all">
+                      <FileText size={18} /> دانلود Word
+                  </button>
+                  <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-day-dark text-white hover:bg-gray-800 text-sm font-bold transition-all shadow-md">
+                      <Printer size={18} /> چاپ / PDF
+                  </button>
+               </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showScrollTop && (
         <button
@@ -500,7 +603,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
       <div ref={containerRef} className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar no-print scroll-smooth">
         <div className="max-w-5xl mx-auto space-y-8 pb-4">
           {messages.length === 0 && (
-            /* ... Welcome Screen ... */
+            /* Welcome Screen */
             <div className="min-h-[60vh] flex flex-col items-center justify-center text-gray-400 opacity-90">
               <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-cyan-100/50 border border-gray-100 rotate-3 hover:rotate-0 transition-transform duration-500">
                 <Bot size={40} className="text-day-teal" />
