@@ -1,7 +1,7 @@
 import React, { useState, DragEvent, useRef, useMemo } from 'react';
 import { KnowledgeSource, Task, ChatSession, ModelId } from '../types';
 import { AVAILABLE_MODELS } from '../services/geminiService';
-import { Plus, FileText, Trash2, CheckCircle, Database, XCircle, ShieldCheck, UploadCloud, Loader, MessageSquarePlus, X, Search, ListTodo, Calendar, Clock, Square, CheckSquare, ArrowUpDown, History, ArchiveRestore, Eraser, MessageSquare, Globe, Link, Github, Phone, Key, Cpu, Check, ChevronDown, Zap, Brain, Activity, FlaskConical, Sparkles } from './Icons';
+import { Plus, FileText, Trash2, CheckCircle, Database, XCircle, ShieldCheck, UploadCloud, Loader, MessageSquarePlus, X, Search, ListTodo, Calendar, Clock, Square, CheckSquare, ArrowUpDown, History, ArchiveRestore, Eraser, MessageSquare, Globe, Link, Github, Phone, Key, Cpu, Check, ChevronDown, Zap, Brain, Activity, FlaskConical, Sparkles, BarChart3 } from './Icons';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
@@ -28,6 +28,7 @@ interface SidebarProps {
   onClearHistory: () => void;
   onClearCache: () => void;
   onOpenSettings: () => void;
+  onOpenDashboard: () => void;
 }
 
 type Tab = 'sources' | 'tasks' | 'history';
@@ -53,7 +54,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onDeleteChat,
   onClearHistory,
   onClearCache,
-  onOpenSettings
+  onOpenSettings,
+  onOpenDashboard
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('sources');
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
@@ -345,6 +347,15 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
             
             <div className="flex items-center gap-1">
+              {/* Dashboard Button */}
+              <button 
+                onClick={onOpenDashboard} 
+                className="p-1.5 hover:bg-white/20 rounded-lg transition-colors text-white"
+                title="وضعیت سیستم"
+              >
+                <BarChart3 size={20} />
+              </button>
+
               {/* API Settings Button */}
               <button 
                 onClick={onOpenSettings} 

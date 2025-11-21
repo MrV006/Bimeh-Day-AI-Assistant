@@ -34,6 +34,15 @@ export interface UsageStats {
   }
 }
 
+export interface VisitorLog {
+  id: string;
+  ip: string;
+  location: string;
+  timestamp: string;
+  modelUsed: string;
+  status: 'Success' | 'Rate Limited' | 'Error';
+}
+
 export interface Message {
   id: string;
   role: Role;

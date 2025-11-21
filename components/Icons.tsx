@@ -56,7 +56,13 @@ import {
   Brain,
   Activity,
   FlaskConical,
-  Sparkles
+  Sparkles,
+  BarChart3,
+  MapPin,
+  Users,
+  Wifi,
+  Server,
+  Globe2
 } from 'lucide-react';
 
 export {
@@ -116,5 +122,11 @@ export {
   Brain,
   Activity,
   FlaskConical,
-  Sparkles
+  Sparkles,
+  BarChart3,
+  MapPin,
+  Users,
+  Wifi,
+  Server,
+  Globe2
 };

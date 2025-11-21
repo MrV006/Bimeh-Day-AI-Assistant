@@ -451,7 +451,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
           </div>
           <button 
             onClick={() => handleStartEditNote(msg)}
-            className={`absolute top-2 left-2 p-1 rounded opacity-0 group-hover/note:opacity-100 transition-opacity ${msg.role === Role.USER ? 'hover:bg-white/20 text-white' : 'hover:bg-yellow-200 text-gray-500'}`}
+            className={`absolute top-2 left-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity ${msg.role === Role.USER ? 'hover:bg-white/20 text-white' : 'hover:bg-yellow-200 text-gray-500'}`}
             title="ویرایش یادداشت"
           >
             <Pen size={12} />
@@ -642,7 +642,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                 id={`msg-${msg.id}`}
                 className={`flex w-full transition-colors duration-500 ${isCurrentMatch ? 'bg-yellow-50/50 -mx-4 px-4 py-2 rounded-lg' : ''} ${msg.role === Role.USER ? 'justify-start' : 'justify-end'}`}
               >
-                <div className="flex max-w-[90%] md:max-w-[80%] lg:max-w-[75%] xl:max-w-[70%] gap-3 md:gap-4 group relative">
+                <div className={`flex max-w-[90%] md:max-w-[80%] lg:max-w-[75%] xl:max-w-[70%] gap-3 md:gap-4 group relative ${msg.role === Role.MODEL ? 'flex-row-reverse' : 'flex-row'}`}>
                   
                   {msg.role === Role.USER && (
                     <button 
@@ -781,7 +781,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
           {isLoading && (
             <div className="flex w-full justify-end animate-fade-in">
-              <div className="flex gap-4 max-w-[90%] md:max-w-[80%]">
+              <div className="flex gap-4 max-w-[90%] md:max-w-[80%] flex-row-reverse">
                   <div className="w-8 h-8 md:w-10 md:h-10 rounded-2xl bg-white text-day-teal border border-gray-100 flex items-center justify-center shrink-0 shadow-sm">
                     <Bot size={20} className="md:w-6 md:h-6" />
                   </div>
