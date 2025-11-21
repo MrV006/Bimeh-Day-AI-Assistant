@@ -1,7 +1,7 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { KnowledgeSource, Role, Message, ModelId, ModelConfig } from '../types';
 
-// Define Available Models and their Free Tier Limits
+// Define Available Models and their Free Tier Limits based on Google AI Studio
 export const AVAILABLE_MODELS: ModelConfig[] = [
   {
     id: 'gemini-2.0-flash',
@@ -15,7 +15,7 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   {
     id: 'gemini-2.0-flash-lite-preview-02-05',
     name: 'Gemini 2.0 Flash Lite',
-    description: 'سریع‌ترین و سبک‌ترین مدل (مناسب سرعت بالا)',
+    description: 'سریع‌ترین و ارزان‌ترین (مناسب سرعت بالا)',
     rpm: 30,
     rpd: 1500,
     tpm: '1M',
@@ -31,21 +31,39 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     isStable: true
   },
   {
-    id: 'gemini-1.5-pro',
-    name: 'Gemini 1.5 Pro',
-    description: 'هوشمندترین مدل (برای تحلیل‌های پیچیده)',
-    rpm: 2,
-    rpd: 50,
-    tpm: '32K',
-    isPro: true
-  },
-  {
     id: 'gemini-1.5-flash-8b',
     name: 'Gemini 1.5 Flash-8B',
     description: 'نسخه بسیار سریع و کم‌حجم',
     rpm: 15,
     rpd: 1500,
     tpm: '1M'
+  },
+  {
+    id: 'gemini-1.5-pro',
+    name: 'Gemini 1.5 Pro',
+    description: 'هوشمندترین مدل (تحلیل‌های پیچیده)',
+    rpm: 2,
+    rpd: 50,
+    tpm: '32K',
+    isPro: true
+  },
+  {
+    id: 'gemini-2.0-pro-exp-02-05',
+    name: 'Gemini 2.0 Pro (Exp)',
+    description: 'نسخه آزمایشی هوشمند نسل ۲',
+    rpm: 2,
+    rpd: 50,
+    tpm: '32K',
+    isExperimental: true
+  },
+  {
+    id: 'gemini-2.0-flash-thinking-exp-01-21',
+    name: 'Gemini 2.0 Thinking',
+    description: 'مدل با قابلیت تفکر و استدلال',
+    rpm: 10,
+    rpd: 1500,
+    tpm: '1M',
+    isExperimental: true
   }
 ];
 
@@ -143,7 +161,8 @@ export const generateInsuranceResponse = async (
     } else if (msg.includes("safety") || msg.includes("blocked")) {
       customMessage = "پاسخ مدل به دلایل ایمنی فیلتر شد.";
     } else if (msg.includes("404")) {
-       customMessage = "مدل هوش مصنوعی پاسخگو نیست (خطای 404). ممکن است نیاز به تغییر مدل یا VPN داشته باشید.";
+       // Treat 404 as a potential model unavailability or API key issue for that specific model
+       throw new Error("MODEL_NOT_FOUND");
     }
 
     throw new Error(customMessage);

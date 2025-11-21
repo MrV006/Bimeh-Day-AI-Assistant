@@ -8,7 +8,9 @@ export type ModelId =
   | 'gemini-2.0-flash-lite-preview-02-05' 
   | 'gemini-1.5-flash' 
   | 'gemini-1.5-pro'
-  | 'gemini-1.5-flash-8b';
+  | 'gemini-1.5-flash-8b'
+  | 'gemini-2.0-pro-exp-02-05'
+  | 'gemini-2.0-flash-thinking-exp-01-21';
 
 export interface ModelConfig {
   id: ModelId;
@@ -20,6 +22,7 @@ export interface ModelConfig {
   isNew?: boolean;
   isStable?: boolean;
   isPro?: boolean; // High intelligence, low rate limit
+  isExperimental?: boolean;
 }
 
 export interface UsageStats {

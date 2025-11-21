@@ -1,7 +1,7 @@
 import React, { useState, DragEvent, useRef, useMemo } from 'react';
 import { KnowledgeSource, Task, ChatSession, ModelId } from '../types';
 import { AVAILABLE_MODELS } from '../services/geminiService';
-import { Plus, FileText, Trash2, CheckCircle, Database, XCircle, ShieldCheck, UploadCloud, Loader, MessageSquarePlus, X, Search, ListTodo, Calendar, Clock, Square, CheckSquare, ArrowUpDown, History, ArchiveRestore, Eraser, MessageSquare, Globe, Link, Github, Phone, Key, Cpu, Check, ChevronDown, Zap, Brain, Activity } from './Icons';
+import { Plus, FileText, Trash2, CheckCircle, Database, XCircle, ShieldCheck, UploadCloud, Loader, MessageSquarePlus, X, Search, ListTodo, Calendar, Clock, Square, CheckSquare, ArrowUpDown, History, ArchiveRestore, Eraser, MessageSquare, Globe, Link, Github, Phone, Key, Cpu, Check, ChevronDown, Zap, Brain, Activity, FlaskConical, Sparkles } from './Icons';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
@@ -91,7 +91,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     // Then sort
     return filtered.sort((a, b) => {
       if (sortOption === 'newest') {
-        // Assuming ID is a timestamp string (Date.now())
         return parseInt(b.id) - parseInt(a.id);
       } else if (sortOption === 'oldest') {
         return parseInt(a.id) - parseInt(b.id);
@@ -106,7 +105,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   const highlightText = (text: string, query: string) => {
     if (!query.trim()) return text;
     
-    // Escape special regex characters to prevent errors
     const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`(${escapedQuery})`, 'gi');
     const parts = text.split(regex);
@@ -153,7 +151,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   const handleCreateTask = () => {
     if (!newTaskText.trim()) return;
 
-    // FIX: Append noon time to date string to prevent timezone shifts (off-by-one day) when parsing
     const safeDate = newTaskDate ? `${newTaskDate}T12:00:00` : '';
 
     const newTask: Task = {
@@ -175,7 +172,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     if (!dueDate) return 'text-gray-600';
     
     const today = new Date().toISOString().split('T')[0];
-    // Compare dates (string comparison works for ISO format)
     const taskDate = dueDate.split('T')[0];
     
     if (taskDate < today) return 'text-day-accent'; // Overdue
@@ -222,7 +218,6 @@ const Sidebar: React.FC<SidebarProps> = ({
       ) {
         text = await extractTextFromDocx(arrayBuffer);
       } else {
-        // Fallback for plain text files
         setUploadProgress('در حال خواندن فایل متنی...');
         text = await file.text();
       }
@@ -251,7 +246,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     setUploadProgress('در حال دریافت محتوای وبسایت...');
 
     try {
-        // Use AllOrigins as a public CORS proxy
         const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(urlInput)}`;
         const response = await fetch(proxyUrl);
         const data = await response.json();
@@ -261,13 +255,11 @@ const Sidebar: React.FC<SidebarProps> = ({
             const parser = new DOMParser();
             const doc = parser.parseFromString(data.contents, 'text/html');
 
-            // Remove scripts, styles, and other non-content elements
             doc.querySelectorAll('script, style, iframe, nav, footer, header, aside, noscript').forEach(el => el.remove());
 
             const title = doc.title || urlInput;
             const text = doc.body.innerText || doc.body.textContent || '';
             
-            // Basic cleaning
             const cleanText = text.replace(/\s+/g, ' ').trim();
 
             if (cleanText.length < 50) {
@@ -314,7 +306,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     if (files && files.length > 0) {
       await processFile(files[0]);
     }
-    // Reset value to allow re-uploading the same file if needed
     if (fileInputRef.current) {
         fileInputRef.current.value = '';
     }
@@ -354,7 +345,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
             
             <div className="flex items-center gap-1">
-              {/* API Settings Button (Visible here for Desktop) */}
+              {/* API Settings Button */}
               <button 
                 onClick={onOpenSettings} 
                 className="p-1.5 hover:bg-white/20 rounded-lg transition-colors text-white"
@@ -387,9 +378,9 @@ const Sidebar: React.FC<SidebarProps> = ({
              </button>
 
              {isModelMenuOpen && (
-               <div className="absolute top-full right-0 w-full mt-1 bg-white rounded-lg shadow-xl border border-gray-100 py-1 text-gray-700 z-20 overflow-hidden animate-fade-in max-h-[300px] overflow-y-auto custom-scrollbar">
+               <div className="absolute top-full right-0 w-full mt-1 bg-white rounded-lg shadow-xl border border-gray-100 py-1 text-gray-700 z-50 overflow-hidden animate-fade-in max-h-[350px] overflow-y-auto custom-scrollbar">
                  <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">
-                    <span className="text-[10px] font-bold text-gray-500">انتخاب مدل (بر اساس محدودیت API)</span>
+                    <span className="text-[10px] font-bold text-gray-500">انتخاب مدل (نرخ استفاده رایگان)</span>
                  </div>
                  {AVAILABLE_MODELS.map((model) => (
                    <button 
@@ -404,10 +395,11 @@ const Sidebar: React.FC<SidebarProps> = ({
                         {selectedModel === model.id && <Check size={12} className="text-day-teal" />}
                      </div>
                      <span className="text-[10px] text-gray-500">{model.description}</span>
-                     <div className="flex gap-2 mt-0.5">
+                     <div className="flex flex-wrap gap-1 mt-0.5">
                         {model.isNew && <span className="text-[9px] bg-blue-100 text-blue-600 px-1.5 rounded flex items-center gap-0.5"><Zap size={8} /> جدید</span>}
                         {model.isStable && <span className="text-[9px] bg-green-100 text-green-600 px-1.5 rounded flex items-center gap-0.5"><CheckCircle size={8} /> پایدار</span>}
                         {model.isPro && <span className="text-[9px] bg-purple-100 text-purple-600 px-1.5 rounded flex items-center gap-0.5"><Brain size={8} /> هوشمند</span>}
+                        {model.isExperimental && <span className="text-[9px] bg-amber-100 text-amber-600 px-1.5 rounded flex items-center gap-0.5"><FlaskConical size={8} /> آزمایشی</span>}
                         <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 rounded flex items-center gap-0.5"><Activity size={8} /> {model.rpm} RPM</span>
                      </div>
                    </button>
@@ -417,6 +409,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
+        {/* ... (Rest of the component remains largely same, just updated imports/icons) ... */}
         {/* New Chat Button */}
         <div className="p-4 pb-2">
           <button 
@@ -458,12 +451,13 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
         </div>
 
-        {/* ... (Rest of the content - Sources, Tasks, History) ... */}
-        {/* === SOURCES TAB CONTENT === */}
+        {/* ... Tab Contents ... */}
+        {/* === SOURCES TAB === */}
         {activeTab === 'sources' && (
-          <>
-            {/* Search Box */}
-            {sources.length > 0 && (
+            /* ... Existing Source Logic ... */
+            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+              {/* Search and List Logic copied from previous but using updated imports */}
+              {sources.length > 0 && (
               <div className="px-4 mt-4">
                 <div className="relative group">
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -497,7 +491,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </h2>
                 
                 <div className="flex items-center gap-2">
-                    {/* Sort Dropdown */}
                     <div className="relative flex items-center bg-gray-50 border border-gray-200 rounded-lg px-2 py-0.5">
                          <ArrowUpDown size={10} className="text-gray-400 ml-1" />
                         <select 
@@ -510,23 +503,17 @@ const Sidebar: React.FC<SidebarProps> = ({
                             <option value="alpha">الفبا</option>
                         </select>
                     </div>
-
                     <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium border border-gray-200">
                     {processedSources.length} سند
                     </span>
                 </div>
               </div>
 
+              {/* ... Empty States ... */}
               {sources.length === 0 && !isAdding && (
                 <div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl bg-gray-50/50">
                   <p className="text-sm font-medium">هنوز سندی اضافه نشده است</p>
                   <p className="text-xs mt-2 opacity-70">برای پاسخگویی دقیق، اسناد خود را آپلود کنید</p>
-                </div>
-              )}
-              
-              {sources.length > 0 && processedSources.length === 0 && (
-                <div className="text-center py-8 text-gray-400 border border-gray-100 rounded-xl bg-gray-50/30">
-                  <p className="text-sm">نتیجه‌ای یافت نشد</p>
                 </div>
               )}
 
@@ -534,7 +521,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                 {processedSources.map(source => {
                   const isExpanded = expandedItems.has(source.id);
                   const shouldTruncate = source.content.length > 100;
-                  
                   const contentToShow = isExpanded 
                     ? source.content 
                     : (shouldTruncate ? source.content.substring(0, 100) + '...' : source.content);
@@ -552,7 +538,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                           <span className={`text-sm font-bold truncate ${source.isActive ? 'text-day-dark' : 'text-gray-600'}`}>
                             {highlightText(source.title, searchQuery)}
                           </span>
-                          {/* Active Indicator */}
                           {source.isActive && (
                             <div className="flex items-center gap-1 bg-green-50 border border-green-100 px-1.5 py-0.5 rounded-full text-[9px] text-green-700 shrink-0 mr-1" title="استفاده در پاسخ‌دهی">
                                 <span className="relative flex h-1.5 w-1.5">
@@ -587,19 +572,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                             <button 
                               onClick={() => onToggleSource(source.id)}
                               className={`flex items-center gap-1 text-[10px] font-medium transition-colors ${source.isActive ? 'text-green-600' : 'text-gray-400 hover:text-gray-600'}`}
-                              title={source.isActive ? "غیرفعال کردن" : "فعال کردن"}
                             >
-                              {source.isActive ? (
-                                <>
-                                  <CheckCircle size={14} />
-                                  <span>فعال</span>
-                                </>
-                              ) : (
-                                <>
-                                  <XCircle size={14} />
-                                  <span>غیرفعال</span>
-                                </>
-                              )}
+                              {source.isActive ? (<><CheckCircle size={14} /><span>فعال</span></>) : (<><XCircle size={14} /><span>غیرفعال</span></>)}
                             </button>
                         </div>
                       </div>
@@ -608,9 +582,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 })}
               </div>
             </div>
-
-             {/* Add Source Section */}
-            <div className="p-4 border-t border-gray-100 bg-gray-50">
+             <div className="p-4 border-t border-gray-100 bg-gray-50">
               {!isAdding ? (
                 <button 
                   onClick={() => setIsAdding(true)}
@@ -628,393 +600,102 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </button>
                   </div>
 
-                  {/* Mode Switcher */}
                   <div className="flex bg-gray-100 p-1 rounded-lg mb-4">
-                      <button
-                        onClick={() => setAddMode('file')}
-                        className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-medium rounded-md transition-all ${addMode === 'file' ? 'bg-white text-day-teal shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                      >
-                          <UploadCloud size={14} />
-                          آپلود فایل
+                      <button onClick={() => setAddMode('file')} className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-medium rounded-md transition-all ${addMode === 'file' ? 'bg-white text-day-teal shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                          <UploadCloud size={14} /> آپلود فایل
                       </button>
-                      <button
-                        onClick={() => setAddMode('link')}
-                        className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-medium rounded-md transition-all ${addMode === 'link' ? 'bg-white text-day-teal shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                      >
-                          <Link size={14} />
-                          لینک وبسایت
+                      <button onClick={() => setAddMode('link')} className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-medium rounded-md transition-all ${addMode === 'link' ? 'bg-white text-day-teal shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                          <Link size={14} /> لینک وبسایت
                       </button>
                   </div>
 
                   {addMode === 'file' ? (
-                      /* Drag and Drop Area */
-                      <div
-                        onDragOver={onDragOver}
-                        onDragLeave={onDragLeave}
-                        onDrop={onDrop}
-                        onClick={() => !isProcessingFile && fileInputRef.current?.click()}
-                        className={`
-                          mb-4 border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all duration-200
-                          flex flex-col items-center justify-center gap-3 min-h-[140px] group
-                          ${isDragging 
-                            ? 'border-day-teal bg-cyan-50' 
-                            : 'border-gray-200 hover:border-day-teal hover:bg-gray-50'}
-                          ${isProcessingFile ? 'cursor-default hover:bg-white' : ''}
-                        `}
-                      >
-                        <input 
-                          type="file" 
-                          ref={fileInputRef}
-                          onChange={onFileInputChange}
-                          className="hidden"
-                          accept=".txt,.md,.json,.csv,.pdf,.docx"
-                          disabled={isProcessingFile}
-                        />
-                        
+                      <div onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop} onClick={() => !isProcessingFile && fileInputRef.current?.click()} className={`mb-4 border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-3 min-h-[140px] group ${isDragging ? 'border-day-teal bg-cyan-50' : 'border-gray-200 hover:border-day-teal hover:bg-gray-50'} ${isProcessingFile ? 'cursor-default hover:bg-white' : ''}`}>
+                        <input type="file" ref={fileInputRef} onChange={onFileInputChange} className="hidden" accept=".txt,.md,.json,.csv,.pdf,.docx" disabled={isProcessingFile} />
                         {isProcessingFile ? (
-                          <div className="flex flex-col items-center gap-3 animate-pulse">
-                            <Loader size={32} className="animate-spin text-day-teal" />
-                            <span className="text-xs text-day-dark font-bold">{uploadProgress || 'در حال پردازش...'}</span>
-                          </div>
+                          <div className="flex flex-col items-center gap-3 animate-pulse"><Loader size={32} className="animate-spin text-day-teal" /><span className="text-xs text-day-dark font-bold">{uploadProgress || 'در حال پردازش...'}</span></div>
                         ) : (
-                          <>
-                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-cyan-100 transition-colors">
-                                <UploadCloud size={24} className="text-gray-400 group-hover:text-day-teal" />
-                            </div>
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs text-gray-700 font-bold">
-                                کلیک کنید یا فایل را اینجا رها کنید
-                                </span>
-                                <span className="text-[10px] text-gray-400">
-                                PDF, DOCX, TXT
-                                </span>
-                            </div>
-                          </>
+                          <><div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-cyan-100 transition-colors"><UploadCloud size={24} className="text-gray-400 group-hover:text-day-teal" /></div><div className="flex flex-col gap-1"><span className="text-xs text-gray-700 font-bold">کلیک کنید یا فایل را اینجا رها کنید</span><span className="text-[10px] text-gray-400">PDF, DOCX, TXT</span></div></>
                         )}
                       </div>
                   ) : (
-                      /* Website Link Area */
-                      <div className="mb-4">
-                         <div className="flex gap-2">
-                            <input 
-                                type="url"
-                                placeholder="https://example.com"
-                                value={urlInput}
-                                onChange={(e) => setUrlInput(e.target.value)}
-                                className="flex-1 text-sm p-2 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-day-teal outline-none dir-ltr text-left"
-                            />
-                            <button 
-                                onClick={handleFetchUrl}
-                                disabled={!urlInput || isProcessingFile}
-                                className="bg-day-dark text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-day-teal disabled:opacity-50 transition-colors"
-                            >
-                                {isProcessingFile ? <Loader size={14} className="animate-spin" /> : 'دریافت'}
-                            </button>
-                         </div>
-                         {isProcessingFile && (
-                             <div className="mt-2 flex items-center gap-2 text-xs text-day-teal">
-                                <Loader size={12} className="animate-spin" />
-                                <span>{uploadProgress}</span>
-                             </div>
-                         )}
-                         <p className="text-[10px] text-gray-400 mt-2">
-                            محتوای متنی صفحه به صورت خودکار استخراج و تمیز می‌شود.
-                         </p>
-                      </div>
+                      <div className="mb-4"><div className="flex gap-2"><input type="url" placeholder="https://example.com" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} className="flex-1 text-sm p-2 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-day-teal outline-none dir-ltr text-left" /><button onClick={handleFetchUrl} disabled={!urlInput || isProcessingFile} className="bg-day-dark text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-day-teal disabled:opacity-50 transition-colors">{isProcessingFile ? <Loader size={14} className="animate-spin" /> : 'دریافت'}</button></div>{isProcessingFile && <div className="mt-2 flex items-center gap-2 text-xs text-day-teal"><Loader size={12} className="animate-spin" /><span>{uploadProgress}</span></div>}<p className="text-[10px] text-gray-400 mt-2">محتوای متنی صفحه به صورت خودکار استخراج و تمیز می‌شود.</p></div>
                   )}
                   
                   <div className="space-y-3">
-                    <input 
-                        type="text" 
-                        placeholder="عنوان سند"
-                        className="w-full p-3 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-day-teal focus:ring-2 focus:ring-cyan-100 outline-none transition-all"
-                        value={newTitle}
-                        onChange={(e) => setNewTitle(e.target.value)}
-                        disabled={isProcessingFile}
-                    />
-                    
-                    <textarea 
-                        placeholder="متن استخراج شده..."
-                        className="w-full p-3 text-sm border border-gray-200 rounded-xl h-24 bg-gray-50 focus:bg-white focus:border-day-teal focus:ring-2 focus:ring-cyan-100 outline-none resize-none transition-all custom-scrollbar leading-relaxed"
-                        value={newContent}
-                        onChange={(e) => setNewContent(e.target.value)}
-                        disabled={isProcessingFile}
-                    />
-
-                    <button 
-                        onClick={handleAdd}
-                        disabled={!newTitle || !newContent || isProcessingFile}
-                        className={`
-                        w-full text-white py-3 rounded-xl text-sm font-bold transition-all shadow-md
-                        ${(!newTitle || !newContent || isProcessingFile) ? 'bg-gray-300 cursor-not-allowed shadow-none' : 'bg-day-accent hover:bg-pink-700 hover:shadow-lg transform hover:-translate-y-0.5'}
-                        `}
-                    >
-                        ثبت در پایگاه دانش
-                    </button>
+                    <input type="text" placeholder="عنوان سند" className="w-full p-3 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-day-teal focus:ring-2 focus:ring-cyan-100 outline-none transition-all" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} disabled={isProcessingFile} />
+                    <textarea placeholder="متن استخراج شده..." className="w-full p-3 text-sm border border-gray-200 rounded-xl h-24 bg-gray-50 focus:bg-white focus:border-day-teal focus:ring-2 focus:ring-cyan-100 outline-none resize-none transition-all custom-scrollbar leading-relaxed" value={newContent} onChange={(e) => setNewContent(e.target.value)} disabled={isProcessingFile} />
+                    <button onClick={handleAdd} disabled={!newTitle || !newContent || isProcessingFile} className={`w-full text-white py-3 rounded-xl text-sm font-bold transition-all shadow-md ${(!newTitle || !newContent || isProcessingFile) ? 'bg-gray-300 cursor-not-allowed shadow-none' : 'bg-day-accent hover:bg-pink-700 hover:shadow-lg transform hover:-translate-y-0.5'}`}>ثبت در پایگاه دانش</button>
                   </div>
                 </div>
               )}
             </div>
-          </>
+            </div>
         )}
 
-        {/* ... (Tasks and History Tabs same as original) ... */}
-        {/* === TASKS TAB CONTENT === */}
+        {/* === TASKS TAB === */}
         {activeTab === 'tasks' && (
-            <>
-                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+             /* ... Existing Task Logic ... */
+            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2 tracking-wider">
-                        <ListTodo size={14} />
-                         لیست وظایف
-                        </h2>
-                        <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium border border-gray-200">
-                         {tasks.filter(t => !t.isCompleted).length} فعال
-                        </span>
+                        <h2 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2 tracking-wider"><ListTodo size={14} /> لیست وظایف</h2>
+                        <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium border border-gray-200">{tasks.filter(t => !t.isCompleted).length} فعال</span>
                    </div>
-
-                   {tasks.length === 0 && !isAddingTask && (
-                        <div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl bg-gray-50/50">
-                            <p className="text-sm font-medium">هنوز وظیفه‌ای ثبت نشده</p>
-                            <p className="text-xs mt-2 opacity-70">کارهای مربوط به بیمه خود را اینجا مدیریت کنید</p>
-                        </div>
-                    )}
-
+                   {tasks.length === 0 && !isAddingTask && (<div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl bg-gray-50/50"><p className="text-sm font-medium">هنوز وظیفه‌ای ثبت نشده</p><p className="text-xs mt-2 opacity-70">کارهای مربوط به بیمه خود را اینجا مدیریت کنید</p></div>)}
                    <div className="space-y-3">
                         {tasks.map(task => {
                             const statusColor = getTaskStatusColor(task.dueDate, task.isCompleted);
                             return (
                                 <div key={task.id} className={`p-3 rounded-xl border transition-all ${task.isCompleted ? 'bg-gray-50 border-gray-100' : 'bg-white border-gray-200 shadow-sm'}`}>
                                     <div className="flex items-start gap-3">
-                                        <button 
-                                            onClick={() => onToggleTask(task.id)}
-                                            className={`mt-0.5 transition-colors ${task.isCompleted ? 'text-day-teal' : 'text-gray-300 hover:text-day-teal'}`}
-                                        >
-                                            {task.isCompleted ? <CheckSquare size={20} /> : <Square size={20} />}
-                                        </button>
-                                        <div className="flex-1 min-w-0">
-                                            <p className={`text-sm font-medium leading-relaxed break-words ${task.isCompleted ? 'text-gray-400 line-through decoration-gray-300' : 'text-gray-800'}`}>
-                                                {task.text}
-                                            </p>
-                                            {task.dueDate && (
-                                                <div className={`flex items-center gap-1 mt-1.5 text-xs ${statusColor}`}>
-                                                    <Clock size={12} />
-                                                    {/* Check validity before printing */}
-                                                    <span>{task.dueDate ? new Date(task.dueDate).toLocaleDateString('fa-IR') : ''}</span>
-                                                    {/* Show relative text if overdue/today and not completed */}
-                                                    {!task.isCompleted && (
-                                                        <span className="mr-1 font-bold">
-                                                            {task.dueDate.split('T')[0] < new Date().toISOString().split('T')[0] ? '(مهلت گذشته)' : 
-                                                             task.dueDate.split('T')[0] === new Date().toISOString().split('T')[0] ? '(امروز)' : ''}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <button 
-                                            onClick={() => onDeleteTask(task.id)}
-                                            className="text-gray-300 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-all"
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
-                                        {/* Mobile Trash Button always visible or specific styling */}
-                                        <button 
-                                            onClick={() => onDeleteTask(task.id)}
-                                            className="md:hidden text-gray-300 hover:text-red-500 p-1"
-                                        >
-                                             <Trash2 size={14} />
-                                        </button>
+                                        <button onClick={() => onToggleTask(task.id)} className={`mt-0.5 transition-colors ${task.isCompleted ? 'text-day-teal' : 'text-gray-300 hover:text-day-teal'}`}>{task.isCompleted ? <CheckSquare size={20} /> : <Square size={20} />}</button>
+                                        <div className="flex-1 min-w-0"><p className={`text-sm font-medium leading-relaxed break-words ${task.isCompleted ? 'text-gray-400 line-through decoration-gray-300' : 'text-gray-800'}`}>{task.text}</p>{task.dueDate && (<div className={`flex items-center gap-1 mt-1.5 text-xs ${statusColor}`}><Clock size={12} /><span>{task.dueDate ? new Date(task.dueDate).toLocaleDateString('fa-IR') : ''}</span>{!task.isCompleted && (<span className="mr-1 font-bold">{task.dueDate.split('T')[0] < new Date().toISOString().split('T')[0] ? '(مهلت گذشته)' : task.dueDate.split('T')[0] === new Date().toISOString().split('T')[0] ? '(امروز)' : ''}</span>)}</div>)}</div>
+                                        <button onClick={() => onDeleteTask(task.id)} className="text-gray-300 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
+                                        <button onClick={() => onDeleteTask(task.id)} className="md:hidden text-gray-300 hover:text-red-500 p-1"><Trash2 size={14} /></button>
                                     </div>
                                 </div>
                             );
                         })}
                    </div>
-                </div>
-
-                {/* Add Task Section */}
-                <div className="p-4 border-t border-gray-100 bg-gray-50">
-                    {!isAddingTask ? (
-                        <button 
-                        onClick={() => setIsAddingTask(true)}
-                        className="w-full py-3.5 flex items-center justify-center gap-2 bg-white text-day-teal border border-day-teal rounded-xl hover:bg-day-teal hover:text-white transition-all shadow-sm"
-                        >
-                        <Plus size={20} />
-                        <span className="font-bold text-sm">افزودن وظیفه جدید</span>
-                        </button>
-                    ) : (
-                        <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-lg animate-fade-in">
-                            <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
-                                <span className="text-sm font-bold text-day-dark">وظیفه جدید</span>
-                                <button onClick={() => setIsAddingTask(false)} className="text-gray-400 hover:text-day-accent">
-                                <XCircle size={20} />
-                                </button>
-                            </div>
-                            
-                            <div className="space-y-3">
-                                <input 
-                                    type="text" 
-                                    placeholder="عنوان کار (مثلا: تمدید بیمه شخص ثالث)"
-                                    className="w-full p-3 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-day-teal outline-none transition-all"
-                                    value={newTaskText}
-                                    onChange={(e) => setNewTaskText(e.target.value)}
-                                    autoFocus
-                                />
-                                
-                                <div className="relative">
-                                    <input 
-                                        type="date"
-                                        className="w-full p-3 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-day-teal outline-none transition-all appearance-none"
-                                        value={newTaskDate}
-                                        onChange={(e) => setNewTaskDate(e.target.value)}
-                                    />
-                                    {!newTaskDate && (
-                                         <span className="absolute right-3 top-3.5 text-gray-400 text-sm pointer-events-none flex items-center gap-2 bg-gray-50 pr-1">
-                                            <Calendar size={16} />
-                                            تاریخ سررسید
-                                         </span>
-                                    )}
-                                </div>
-
-                                <button 
-                                    onClick={handleCreateTask}
-                                    disabled={!newTaskText.trim()}
-                                    className={`
-                                    w-full text-white py-3 rounded-xl text-sm font-bold transition-all shadow-md
-                                    ${!newTaskText.trim() ? 'bg-gray-300 cursor-not-allowed shadow-none' : 'bg-day-teal hover:bg-day-dark hover:shadow-lg'}
-                                    `}
-                                >
-                                    افزودن به لیست
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </>
+            </div>
+        )}
+        {/* Add Task Section */}
+        {activeTab === 'tasks' && (
+        <div className="p-4 border-t border-gray-100 bg-gray-50">
+            {!isAddingTask ? (<button onClick={() => setIsAddingTask(true)} className="w-full py-3.5 flex items-center justify-center gap-2 bg-white text-day-teal border border-day-teal rounded-xl hover:bg-day-teal hover:text-white transition-all shadow-sm"><Plus size={20} /><span className="font-bold text-sm">افزودن وظیفه جدید</span></button>) : (
+                <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-lg animate-fade-in"><div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2"><span className="text-sm font-bold text-day-dark">وظیفه جدید</span><button onClick={() => setIsAddingTask(false)} className="text-gray-400 hover:text-day-accent"><XCircle size={20} /></button></div><div className="space-y-3"><input type="text" placeholder="عنوان کار (مثلا: تمدید بیمه شخص ثالث)" className="w-full p-3 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-day-teal outline-none transition-all" value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} autoFocus /><div className="relative"><input type="date" className="w-full p-3 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-day-teal outline-none transition-all appearance-none" value={newTaskDate} onChange={(e) => setNewTaskDate(e.target.value)} />{!newTaskDate && (<span className="absolute right-3 top-3.5 text-gray-400 text-sm pointer-events-none flex items-center gap-2 bg-gray-50 pr-1"><Calendar size={16} /> تاریخ سررسید</span>)}</div><button onClick={handleCreateTask} disabled={!newTaskText.trim()} className={`w-full text-white py-3 rounded-xl text-sm font-bold transition-all shadow-md ${!newTaskText.trim() ? 'bg-gray-300 cursor-not-allowed shadow-none' : 'bg-day-teal hover:bg-day-dark hover:shadow-lg'}`}>افزودن به لیست</button></div></div>
+            )}
+        </div>
         )}
 
-        {/* === HISTORY TAB CONTENT === */}
+
+        {/* === HISTORY TAB === */}
         {activeTab === 'history' && (
-            <>
-                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+             /* ... Existing History Logic ... */
+            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2 tracking-wider">
-                        <History size={14} />
-                         آرشیو گفتگوها
-                        </h2>
-                        
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    onClearHistory();
-                                }}
-                                className="relative z-10 text-[10px] bg-red-50 text-red-500 px-3 py-1.5 rounded-full font-medium border border-red-100 hover:bg-red-100 transition-colors flex items-center gap-1 active:scale-95"
-                                title="حذف تمام تاریخچه"
-                                disabled={chatHistory.length === 0}
-                            >
-                                <Trash2 size={12} />
-                                حذف همه
-                            </button>
-                            <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium border border-gray-200">
-                            {chatHistory.length} مورد
-                            </span>
-                        </div>
+                        <h2 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2 tracking-wider"><History size={14} /> آرشیو گفتگوها</h2>
+                        <div className="flex items-center gap-2"><button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClearHistory(); }} className="relative z-10 text-[10px] bg-red-50 text-red-500 px-3 py-1.5 rounded-full font-medium border border-red-100 hover:bg-red-100 transition-colors flex items-center gap-1 active:scale-95" title="حذف تمام تاریخچه" disabled={chatHistory.length === 0}><Trash2 size={12} /> حذف همه</button><span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium border border-gray-200">{chatHistory.length} مورد</span></div>
                    </div>
-
-                   {chatHistory.length === 0 && (
-                        <div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl bg-gray-50/50">
-                            <p className="text-sm font-medium">آرشیو خالی است</p>
-                            <p className="text-xs mt-2 opacity-70">گفتگوهای قبلی شما اینجا ذخیره می‌شوند</p>
-                        </div>
-                    )}
-
+                   {chatHistory.length === 0 && (<div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl bg-gray-50/50"><p className="text-sm font-medium">آرشیو خالی است</p><p className="text-xs mt-2 opacity-70">گفتگوهای قبلی شما اینجا ذخیره می‌شوند</p></div>)}
                    <div className="space-y-3 pb-20">
                         {chatHistory.map(session => (
                             <div key={session.id} className="p-3 rounded-xl bg-white border border-gray-200 shadow-sm hover:border-day-teal/50 transition-all group relative">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3 overflow-hidden">
-                                        <div className="p-2 bg-gray-100 text-gray-500 rounded-lg group-hover:bg-cyan-50 group-hover:text-day-teal transition-colors shrink-0">
-                                            <MessageSquare size={16} />
-                                        </div>
-                                        <div className="flex flex-col overflow-hidden">
-                                            <span className="text-sm font-bold text-gray-700 truncate group-hover:text-day-dark transition-colors">
-                                                {session.title}
-                                            </span>
-                                            <span className="text-[10px] text-gray-400">
-                                                {new Date(session.createdAt).toLocaleDateString('fa-IR')} • {session.messages.length} پیام
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-                                    <button 
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            onLoadChat(session);
-                                        }}
-                                        className="relative z-10 flex-1 flex items-center justify-center gap-1 text-xs font-medium text-day-teal bg-cyan-50 py-2 rounded-lg hover:bg-day-teal hover:text-white transition-colors active:scale-95"
-                                    >
-                                        <ArchiveRestore size={14} />
-                                        بازخوانی
-                                    </button>
-                                    <button 
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            if(window.confirm('آیا از حذف این گفتگو اطمینان دارید؟')) onDeleteChat(session.id);
-                                        }}
-                                        className="relative z-10 flex items-center justify-center gap-1 text-xs font-medium text-gray-400 bg-gray-50 py-2 px-4 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors active:scale-95"
-                                        title="حذف"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
-                                </div>
+                                <div className="flex items-center justify-between"><div className="flex items-center gap-3 overflow-hidden"><div className="p-2 bg-gray-100 text-gray-500 rounded-lg group-hover:bg-cyan-50 group-hover:text-day-teal transition-colors shrink-0"><MessageSquare size={16} /></div><div className="flex flex-col overflow-hidden"><span className="text-sm font-bold text-gray-700 truncate group-hover:text-day-dark transition-colors">{session.title}</span><span className="text-[10px] text-gray-400">{new Date(session.createdAt).toLocaleDateString('fa-IR')} • {session.messages.length} پیام</span></div></div></div>
+                                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100"><button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onLoadChat(session); }} className="relative z-10 flex-1 flex items-center justify-center gap-1 text-xs font-medium text-day-teal bg-cyan-50 py-2 rounded-lg hover:bg-day-teal hover:text-white transition-colors active:scale-95"><ArchiveRestore size={14} /> بازخوانی</button><button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); if(window.confirm('آیا از حذف این گفتگو اطمینان دارید؟')) onDeleteChat(session.id); }} className="relative z-10 flex items-center justify-center gap-1 text-xs font-medium text-gray-400 bg-gray-50 py-2 px-4 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors active:scale-95" title="حذف"><Trash2 size={14} /></button></div>
                             </div>
                         ))}
                    </div>
-                </div>
-                
-                {/* Clear Cache Button */}
-                <div className="p-4 border-t border-gray-100 bg-gray-50">
-                     <button 
-                        type="button"
-                        onClick={onClearCache}
-                        className="w-full py-3 flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-500 rounded-xl hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all shadow-sm active:scale-[0.99]"
-                      >
-                        <Eraser size={18} />
-                        <span className="font-medium text-sm">پاک‌سازی کامل حافظه</span>
-                      </button>
-                </div>
-            </>
+            </div>
+        )}
+        {activeTab === 'history' && (
+            <div className="p-4 border-t border-gray-100 bg-gray-50"><button type="button" onClick={onClearCache} className="w-full py-3 flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-500 rounded-xl hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all shadow-sm active:scale-[0.99]"><Eraser size={18} /><span className="font-medium text-sm">پاک‌سازی کامل حافظه</span></button></div>
         )}
 
-        {/* DEVELOPER SIGNATURE (Always visible at bottom) */}
+        {/* Footer */}
         <div className="p-4 border-t border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-500 mt-auto">
             <p className="text-[10px] font-medium mb-2 tracking-wide">طراحی و توسعه توسط <span className="text-day-teal font-bold">Mr.V</span></p>
-            <div className="flex items-center gap-4">
-                <a 
-                    href="https://github.com/MrV006" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="hover:text-black transition-colors"
-                    title="GitHub: MrV006"
-                >
-                    <Github size={16} />
-                </a>
-                <a 
-                    href="tel:09902076468" 
-                    className="hover:text-green-600 transition-colors"
-                    title="Call: 09902076468"
-                >
-                    <Phone size={16} />
-                </a>
-            </div>
+            <div className="flex items-center gap-4"><a href="https://github.com/MrV006" target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors"><Github size={16} /></a><a href="tel:09902076468" className="hover:text-green-600 transition-colors"><Phone size={16} /></a></div>
         </div>
       </aside>
     </>

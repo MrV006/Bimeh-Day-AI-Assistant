@@ -93,17 +93,9 @@ const App: React.FC = () => {
   const [userApiKey, setUserApiKey] = useState<string>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.API_KEY);
     if (!saved) return '';
-    
-    // Robust Migration Check:
-    // If the stored key starts with 'AIza', it is in the old plain-text format.
-    // We return it as is. The useEffect hook will detect this plain text value in state,
-    // and immediately re-save it to localStorage in the new reversed format.
-    // This ensures seamless migration without user intervention.
     if (saved.trim().startsWith('AIza')) {
       return saved.trim();
     }
-
-    // Otherwise, assume it is stored in reverse (obfuscated), so we reverse it back to normal
     return reverseString(saved);
   });
 
@@ -129,17 +121,14 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(chatHistory)); }, [chatHistory]);
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.USAGE, JSON.stringify(usageStats)); }, [usageStats]);
   
-  // Persist API Key (Obfuscated)
   useEffect(() => {
     if (userApiKey) {
-      // Store in reverse to prevent plain-text scraping from local storage
       localStorage.setItem(STORAGE_KEYS.API_KEY, reverseString(userApiKey));
     } else {
       localStorage.removeItem(STORAGE_KEYS.API_KEY);
     }
   }, [userApiKey]);
 
-  // Persist Model
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.MODEL, selectedModel);
   }, [selectedModel]);
@@ -186,7 +175,6 @@ const App: React.FC = () => {
     }
   };
 
-  // --- Chat & History Logic (Same as before) ---
   const handleNewChat = () => {
     if (messages.length > 0) {
       const firstUserMsg = messages.find(m => m.role === Role.USER);
@@ -236,19 +224,16 @@ const App: React.FC = () => {
     }
   };
 
-  // --- Usage Tracking Helper ---
   const updateUsageStats = (modelId: string) => {
     const now = Date.now();
     setUsageStats(prev => {
       const stats = prev[modelId] || { minuteCount: 0, lastMinuteReset: now, dayCount: 0, lastDayReset: now };
       
-      // Reset Minute Count if 60s passed
       if (now - stats.lastMinuteReset > 60000) {
         stats.minuteCount = 0;
         stats.lastMinuteReset = now;
       }
       
-      // Reset Day Count if 24h passed
       if (now - stats.lastDayReset > 86400000) {
         stats.dayCount = 0;
         stats.lastDayReset = now;
@@ -265,26 +250,31 @@ const App: React.FC = () => {
     });
   };
 
-  const handleSendMessage = async (text: string) => {
+  const handleSendMessage = async (text: string, specificModelId?: ModelId) => {
+    const modelToUse = specificModelId || selectedModel;
+    
     const userMsg: Message = {
       id: Date.now().toString(),
       role: Role.USER,
       text: text,
       timestamp: Date.now()
     };
-    setMessages(prev => [...prev, userMsg]);
+    
+    // Only add user message if it's not a retry (where we reuse the previous message)
+    if (!specificModelId) {
+        setMessages(prev => [...prev, userMsg]);
+    }
+    
     setIsLoading(true);
-
-    // Track usage before sending (optimistic)
-    updateUsageStats(selectedModel);
+    updateUsageStats(modelToUse);
 
     try {
       const responseText = await generateInsuranceResponse(
-        [...messages, userMsg],
+        messages.filter(m => !m.isError), // Filter out error messages from history
         text,
         sources,
-        userApiKey, // Pass the user API key
-        selectedModel // Pass selected model
+        userApiKey, 
+        modelToUse
       );
 
       const botMsg: Message = {
@@ -294,8 +284,13 @@ const App: React.FC = () => {
         timestamp: Date.now()
       };
       setMessages(prev => [...prev, botMsg]);
+      
+      // If successful and we switched models, update the preferred model state
+      if (specificModelId && specificModelId !== selectedModel) {
+          setSelectedModel(specificModelId);
+      }
+
     } catch (error: any) {
-      // Check for the specific flag thrown by the service
       if (error.message === "API_KEY_INVALID") {
         setShowApiKeyModal(true);
         const errorMsg: Message = {
@@ -307,16 +302,15 @@ const App: React.FC = () => {
         };
         setMessages(prev => [...prev, errorMsg]);
       } else if (error.message === "RATE_LIMIT_EXCEEDED") {
-        // Handle Rate Limit specifically based on usage tracking
-        const currentStats = usageStats[selectedModel];
-        const modelConfig = AVAILABLE_MODELS.find(m => m.id === selectedModel);
+        const currentStats = usageStats[modelToUse];
+        const modelConfig = AVAILABLE_MODELS.find(m => m.id === modelToUse);
         let rateLimitMsg = "به سقف مجاز استفاده از این مدل رسیدید.";
 
         if (currentStats && modelConfig) {
            if (currentStats.minuteCount >= modelConfig.rpm) {
-             rateLimitMsg = `شما بیش از ${modelConfig.rpm} پیام در دقیقه با مدل ${modelConfig.name} فرستادید. لطفاً ۱ دقیقه صبر کنید یا از مدل "Flash Lite" استفاده کنید.`;
+             rateLimitMsg = `شما بیش از ${modelConfig.rpm} پیام در دقیقه با مدل ${modelConfig.name} فرستادید.`;
            } else if (currentStats.dayCount >= modelConfig.rpd) {
-             rateLimitMsg = `سقف استفاده روزانه (${modelConfig.rpd} پیام) برای مدل ${modelConfig.name} پر شده است. لطفاً مدل دیگری انتخاب کنید.`;
+             rateLimitMsg = `سقف استفاده روزانه (${modelConfig.rpd} پیام) برای مدل ${modelConfig.name} پر شده است.`;
            }
         }
 
@@ -348,8 +342,6 @@ const App: React.FC = () => {
   // --- Retry Logic ---
 
   const handleRetry = () => {
-    // Find last user message
-    // Polyfill for findLastIndex to support older environments
     let lastUserMessageIndex = -1;
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === Role.USER) {
@@ -362,27 +354,85 @@ const App: React.FC = () => {
 
     const lastUserMessage = messages[lastUserMessageIndex];
     
-    // Remove the error message (usually the last one) and any messages after the last user message
-    setMessages(prev => prev.slice(0, lastUserMessageIndex));
+    // Remove the error message and any messages after the last user message
+    setMessages(prev => prev.slice(0, lastUserMessageIndex + 1)); // Keep the user message
     
     // Resend
     handleSendMessage(lastUserMessage.text);
   };
 
-  const handleSwitchModelAndRetry = () => {
-    // Smart switching: If on Pro/Standard, switch to Lite for speed/limits. If on Lite, switch to Standard.
-    if (selectedModel === 'gemini-2.0-flash-lite-preview-02-05') {
-        setSelectedModel('gemini-2.0-flash');
-    } else {
-        setSelectedModel('gemini-2.0-flash-lite-preview-02-05'); // Switch to the highest limit model
+  const handleAutoSwitchModel = async () => {
+    // Get the last user message
+    let lastUserMessageIndex = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === Role.USER) {
+        lastUserMessageIndex = i;
+        break;
+      }
     }
+    if (lastUserMessageIndex === -1) return;
+    const lastUserText = messages[lastUserMessageIndex].text;
+
+    // Clean up UI: Remove error message
+    setMessages(prev => prev.slice(0, lastUserMessageIndex + 1));
+    setIsLoading(true);
+
+    // Iterate through models (excluding current failed one optionally, but simplest is try all except current)
+    // We want to prioritize Flash/Lite models for speed, then others.
+    const candidateModels = AVAILABLE_MODELS.filter(m => m.id !== selectedModel).map(m => m.id);
     
-    // Use setTimeout to ensure state update processes before retry logic triggers
-    setTimeout(() => handleRetry(), 100);
+    let success = false;
+
+    // Try models one by one
+    for (const modelId of candidateModels) {
+        try {
+            // Optimistic check: skip if we know we are rate limited locally
+            // (Optional: skip logic here if needed, but let's try anyway)
+            
+            const responseText = await generateInsuranceResponse(
+                messages.filter(m => !m.isError && m.role !== Role.MODEL), // Filter to just history context
+                lastUserText,
+                sources,
+                userApiKey,
+                modelId
+            );
+
+            // If successful:
+            const botMsg: Message = {
+                id: (Date.now() + 1).toString(),
+                role: Role.MODEL,
+                text: responseText,
+                timestamp: Date.now()
+            };
+            setMessages(prev => [...prev, botMsg]);
+            setSelectedModel(modelId); // Switch preference to the working model
+            success = true;
+            break; // Stop trying
+
+        } catch (err) {
+            console.warn(`Auto-switch failed for ${modelId}`, err);
+            // Continue to next model
+        }
+    }
+
+    setIsLoading(false);
+
+    if (!success) {
+        // If all failed
+        const errorMsg: Message = {
+            id: (Date.now() + 1).toString(),
+            role: Role.MODEL,
+            text: "متاسفانه تمامی مدل‌های هوش مصنوعی در حال حاضر مشغول یا محدود شده‌اند. لطفاً دقایقی دیگر تلاش کنید یا یک کلید API جدید وارد نمایید.",
+            timestamp: Date.now(),
+            isError: true
+        };
+        setMessages(prev => [...prev, errorMsg]);
+        // Optionally open API modal
+        // setShowApiKeyModal(true);
+    }
   };
 
-
-  // ... Bookmark & Task handlers (Same as before) ...
+  // ... Other handlers ...
   const handleToggleBookmark = (id: string) => setMessages(prev => prev.map(msg => msg.id === id ? { ...msg, isBookmarked: !msg.isBookmarked } : msg));
   const handleUpdateBookmarkNote = (id: string, note: string) => setMessages(prev => prev.map(msg => msg.id === id ? { ...msg, bookmarkNote: note } : msg));
   const handleAddSource = (source: KnowledgeSource) => setSources(prev => [source, ...prev]);
@@ -516,7 +566,7 @@ const App: React.FC = () => {
         <span className="font-black text-lg text-day-teal tracking-tight">بیمه دی</span>
       </div>
 
-      {/* Desktop/Tablet API Key Button (Overlay on Sidebar or absolute) */}
+      {/* Desktop/Tablet API Key Button */}
       {!isSidebarOpen && (
          <button 
             onClick={() => setShowApiKeyModal(true)}
@@ -559,7 +609,7 @@ const App: React.FC = () => {
           onToggleBookmark={handleToggleBookmark}
           onUpdateBookmarkNote={handleUpdateBookmarkNote}
           onRetry={handleRetry}
-          onSwitchModelRetry={handleSwitchModelAndRetry}
+          onSwitchModelRetry={handleAutoSwitchModel}
           onOpenSettings={() => setShowApiKeyModal(true)}
         />
         <InputArea onSendMessage={handleSendMessage} isLoading={isLoading} />

@@ -54,7 +54,9 @@ import {
   RefreshCcw,
   Zap,
   Brain,
-  Activity
+  Activity,
+  FlaskConical,
+  Sparkles
 } from 'lucide-react';
 
 export {
@@ -112,5 +114,7 @@ export {
   RefreshCcw,
   Zap,
   Brain,
-  Activity
+  Activity,
+  FlaskConical,
+  Sparkles
 };
