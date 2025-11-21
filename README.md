@@ -1,20 +1,70 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+# دستیار هوشمند بیمه دی (Bimeh Day AI Assistant)
+
+<div dir="rtl">
+
+این پروژه یک دستیار هوشمند پیشرفته مبتنی بر هوش مصنوعی است که به طور اختصاصی برای **شرکت بیمه دی** طراحی و توسعه داده شده است. این نرم‌افزار با استفاده از تکنیک‌های پیشرفته پردازش متن (RAG)، قابلیت تحلیل اسناد بیمه‌ای، پاسخگویی به سوالات تخصصی و مدیریت امور نمایندگان را دارا می‌باشد.
+
+---
+
+### ✨ ویژگی‌های کلیدی
+
+*   **📚 پایگاه دانش پویا:** قابلیت بارگذاری اسناد PDF، فایل‌های Word و حتی لینک‌های وبسایت جهت تحلیل آنی.
+*   **🧠 هوش مصنوعی تطبیق‌پذیر:** استفاده از مدل‌های زبانی پیشرفته جهت درک عمیق مفاهیم حقوقی و بیمه‌ای.
+*   **🔒 امنیت و حریم خصوصی:** ذخیره‌سازی اطلاعات و کلیدهای API به صورت رمزنگاری شده (Obfuscated) در سمت کاربر.
+*   **⚡ سیستم توزیع بار (Load Balancing):** مدیریت هوشمند درخواست‌ها جهت جلوگیری از قطعی سرویس.
+*   **📱 طراحی واکنش‌گرا:** رابط کاربری مدرن و سازگار با موبایل، تبلت و دسکتاپ.
+*   **📝 مدیریت وظایف:** سیستم مدیریت کارهای روزانه با قابلیت یادآوری سررسیدها.
+*   **📊 داشبورد مدیریتی:** نمایش آمار لحظه‌ای مصرف منابع و کاربران.
+
+### 🛠 تکنولوژی‌های استفاده شده
+
+*   **هسته:** React 18, TypeScript
+*   **استایل‌دهی:** Tailwind CSS
+*   **بیلد سیستم:** Vite
+*   **پردازش اسناد:** PDF.js, Mammoth, Cheerio
+*   **هوش مصنوعی:** Gemini API Integration
+
+---
+
+### 🚀 راهنمای اجرا (برای توسعه‌دهندگان)
+
+برای اجرای این پروژه روی سیستم خود، دستورات زیر را اجرا کنید:
+
+1. **نصب وابستگی‌ها:**
+```bash
+npm install
+```
+
+2. **اجرای نسخه توسعه:**
+```bash
+npm run dev
+```
+
+3. **ساخت نسخه نهایی:**
+```bash
+npm run build
+```
+
+---
+
+### 👨‍💻 توسعه‌دهنده
+
+**طراحی و توسعه توسط: Mr.V**
+*   [گیت‌هاب](https://github.com/MrV006)
+*   نسخه: 1.0.0 (Pilot)
+
 </div>
 
-# Run and deploy your AI Studio app
+---
 
-This contains everything you need to run your app locally.
+# Bimeh Day AI Assistant
 
-View your app in AI Studio: https://ai.studio/apps/drive/1bk7DzBu_G2eGnSIyULe7ydDO7C76bgE5
+A specialized AI-powered assistant designed for **Day Insurance**, capable of analyzing insurance policies, managing tasks, and providing instant support for agents and customers.
 
-## Run Locally
+### Key Features
+- **RAG Architecture:** Upload PDFs, Docx, or Web links to chat with your documents.
+- **Smart Context:** Context-aware responses based on active knowledge sources.
+- **High Availability:** Multi-key fallback system and auto-model switching.
+- **Secure:** Client-side processing with obfuscated local storage.
 
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+**Developed by Mr.V**
