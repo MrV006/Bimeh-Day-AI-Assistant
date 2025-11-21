@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import InputArea from './components/InputArea';
@@ -155,7 +155,7 @@ const App: React.FC = () => {
     } catch(e){}
   }, []);
 
-  // Dashboard Data Simulation
+  // Dashboard Data - REAL USER ONLY (No Fakes)
   useEffect(() => {
     // Fetch Real IP
     fetch('https://ipapi.co/json/')
@@ -163,39 +163,17 @@ const App: React.FC = () => {
         .then(data => {
             setUserLocation({ ip: data.ip, city: `${data.city}, ${data.country_name}` });
             // Add self to logs
-            setVisitorLogs(prev => [{
+            const myLog: VisitorLog = {
                 id: Date.now().toString(),
                 ip: data.ip,
                 location: `${data.city}, ${data.country_name}`,
                 timestamp: new Date().toLocaleTimeString('fa-IR'),
                 modelUsed: 'System Check',
                 status: 'Success'
-            }, ...prev]);
+            };
+            setVisitorLogs([myLog]);
         })
         .catch(() => setUserLocation({ ip: 'Unknown', city: 'Unknown' }));
-
-    // Simulate Live Traffic
-    const interval = setInterval(() => {
-        // Random active users
-        setActiveUsersCount(Math.floor(Math.random() * (45 - 12 + 1) + 12));
-        
-        // Occasionally add a random log
-        if (Math.random() > 0.7) {
-            const fakeIP = `192.168.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}`;
-            const cities = ['Tehran, Iran', 'Shiraz, Iran', 'Mashhad, Iran', 'Isfahan, Iran', 'Tabriz, Iran', 'Dubai, UAE', 'Frankfurt, DE'];
-            const statuses: VisitorLog['status'][] = ['Success', 'Success', 'Success', 'Success', 'Rate Limited'];
-            
-            const newLog: VisitorLog = {
-                id: Date.now().toString(),
-                ip: fakeIP,
-                location: cities[Math.floor(Math.random() * cities.length)],
-                timestamp: new Date().toLocaleTimeString('fa-IR'),
-                modelUsed: Math.random() > 0.5 ? 'gemini-2.0-flash' : 'gemini-1.5-flash',
-                status: statuses[Math.floor(Math.random() * statuses.length)]
-            };
-            setVisitorLogs(prev => [newLog, ...prev].slice(0, 20)); // Keep last 20
-        }
-    }, 3000);
 
     // Reset Daily Stats
     const resetInterval = setInterval(() => {
@@ -207,14 +185,12 @@ const App: React.FC = () => {
     }, 60000);
 
     return () => {
-        clearInterval(interval);
         clearInterval(resetInterval);
     };
   }, []);
 
   // Check for updates logic
-  useEffect(() => {
-    const checkVersion = async () => {
+  const checkForUpdates = useCallback(async () => {
       try {
         const res = await fetch(`./version.json?t=${Date.now()}`);
         if (!res.ok) return;
@@ -226,16 +202,32 @@ const App: React.FC = () => {
           setUpdateAvailable(true);
         }
       } catch (e) { /* ignore */ }
-    };
-    checkVersion();
-    const interval = setInterval(checkVersion, 60 * 1000);
-    const handleVisibilityChange = () => { if (document.visibilityState === 'visible') checkVersion(); };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', handleVisibilityChange); };
   }, [appVersion]);
 
+  useEffect(() => {
+    checkForUpdates(); // Check on mount
+    
+    // Check every 5 seconds
+    const interval = setInterval(checkForUpdates, 5000);
+    
+    const handleVisibilityChange = () => { if (document.visibilityState === 'visible') checkForUpdates(); };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => { 
+        clearInterval(interval); 
+        document.removeEventListener('visibilitychange', handleVisibilityChange); 
+    };
+  }, [checkForUpdates]);
+
+  const triggerUpdateCheck = () => {
+      checkForUpdates();
+  };
+
   const handleUpdateApp = () => window.location.reload();
-  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+  const toggleSidebar = () => {
+      setIsSidebarOpen(!isSidebarOpen);
+      triggerUpdateCheck();
+  };
 
   const handleSaveApiKey = () => {
     const cleanedKey = tempApiKey.trim();
@@ -245,6 +237,7 @@ const App: React.FC = () => {
         setTempApiKey('');
         alert('کلید API با موفقیت ذخیره شد. لطفاً مجدداً پیام خود را ارسال کنید.');
     }
+    triggerUpdateCheck();
   };
 
   const handleClearApiKey = () => {
@@ -255,6 +248,7 @@ const App: React.FC = () => {
   };
 
   const handleNewChat = () => {
+    triggerUpdateCheck();
     if (messages.length > 0) {
       const firstUserMsg = messages.find(m => m.role === Role.USER);
       const title = firstUserMsg 
@@ -271,18 +265,23 @@ const App: React.FC = () => {
     }
   };
   const handleLoadChat = (session: ChatSession) => {
+    triggerUpdateCheck();
     if (messages.length > 0) {
       if (window.confirm('گفتگوی فعلی ذخیره نشده است. آیا می‌خواهید آن را آرشیو کنید؟')) handleNewChat();
     }
     setMessages(session.messages);
     if (window.innerWidth < 768) setIsSidebarOpen(false);
   };
-  const handleDeleteChat = (sessionId: string) => setChatHistory(prev => prev.filter(s => String(s.id) !== String(sessionId)));
+  const handleDeleteChat = (sessionId: string) => {
+      setChatHistory(prev => prev.filter(s => String(s.id) !== String(sessionId)));
+      triggerUpdateCheck();
+  }
   const handleClearHistory = () => {
     if (window.confirm('آیا مطمئن هستید که می‌خواهید تمام تاریخچه گفتگوها را حذف کنید؟')) {
       setChatHistory([]);
       localStorage.removeItem(STORAGE_KEYS.HISTORY);
     }
+    triggerUpdateCheck();
   };
   const handleClearCache = () => {
     if (window.confirm('آیا مطمئن هستید؟ تمامی تنظیمات، تاریخچه و منابع پاک خواهند شد.')) {
@@ -331,6 +330,7 @@ const App: React.FC = () => {
   };
 
   const handleSendMessage = async (text: string, specificModelId?: ModelId, isRetry: boolean = false) => {
+    triggerUpdateCheck();
     const modelToUse = specificModelId || selectedModel;
     
     const userMsg: Message = {
@@ -341,7 +341,6 @@ const App: React.FC = () => {
     };
     
     // Only add user message if it's not a retry. 
-    // If retry, we assume the user message is already there (or was handled by retry logic)
     if (!isRetry && !specificModelId) {
         setMessages(prev => [...prev, userMsg]);
     }
@@ -350,7 +349,7 @@ const App: React.FC = () => {
     updateUsageStats(modelToUse);
 
     try {
-      // Filter messages: exclude errors. If retrying, usage history logic is handled by caller or filtering.
+      // Filter messages: exclude errors.
       const historyContext = messages.filter(m => !m.isError);
 
       const responseText = await generateInsuranceResponse(
@@ -369,7 +368,6 @@ const App: React.FC = () => {
       };
       setMessages(prev => [...prev, botMsg]);
       
-      // If successful and we switched models, update the preferred model state
       if (specificModelId && specificModelId !== selectedModel) {
           setSelectedModel(specificModelId);
       }
@@ -411,7 +409,7 @@ const App: React.FC = () => {
          const errorMsg: Message = {
           id: (Date.now() + 1).toString(),
           role: Role.MODEL,
-          text: "خطا در اتصال به شبکه. لطفاً اتصال اینترنت و فیلترشکن (VPN) گوشی خود را بررسی کنید. (برای استفاده از این سرویس، VPN باید روشن باشد)",
+          text: "خطا در اتصال به شبکه. لطفاً اتصال اینترنت و فیلترشکن (VPN) خود را روشن کنید. (برای استفاده از این سرویس، VPN باید حتما روشن باشد)",
           timestamp: Date.now(),
           isError: true
         };
@@ -447,14 +445,12 @@ const App: React.FC = () => {
 
     const lastUserMessage = messages[lastUserMessageIndex];
     
-    // Remove the error message and any messages after the last user message
     setMessages(prev => prev.slice(0, lastUserMessageIndex + 1)); // Keep the user message
-    
-    // Resend with isRetry = true
     handleSendMessage(lastUserMessage.text, undefined, true);
   };
 
   const handleAutoSwitchModel = async () => {
+    triggerUpdateCheck();
     let lastUserMessageIndex = -1;
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === Role.USER) {
@@ -504,7 +500,7 @@ const App: React.FC = () => {
         let errorText = "متاسفانه تمامی مدل‌های هوش مصنوعی در حال حاضر مشغول یا محدود شده‌اند. لطفاً دقایقی دیگر تلاش کنید یا یک کلید API جدید وارد نمایید.";
         
         if (lastErrorMsg.includes("fetch") || lastErrorMsg.includes("Network") || lastErrorMsg.includes("Failed to fetch")) {
-             errorText = "خطا در اتصال به شبکه. لطفاً اتصال اینترنت و فیلترشکن (VPN) گوشی خود را بررسی کنید. تمام مدل‌ها غیرقابل دسترس هستند.";
+             errorText = "خطا در اتصال به شبکه. لطفاً اتصال اینترنت و فیلترشکن (VPN) خود را روشن کنید. تمام مدل‌ها غیرقابل دسترس هستند.";
         }
 
         const errorMsg: Message = {
@@ -532,7 +528,10 @@ const App: React.FC = () => {
   const handleToggleSource = (id: string) => setSources(prev => prev.map(s => s.id === id ? { ...s, isActive: !s.isActive } : s));
   const handleDeleteSource = (id: string) => setSources(prev => prev.filter(s => s.id !== id));
   const handleAddTask = (task: Task) => setTasks(prev => [task, ...prev]);
-  const handleToggleTask = (id: string) => setTasks(prev => prev.map(t => t.id === id ? { ...t, isCompleted: !t.isCompleted } : t));
+  const handleToggleTask = (id: string) => {
+      setTasks(prev => prev.map(t => t.id === id ? { ...t, isCompleted: !t.isCompleted } : t));
+      triggerUpdateCheck();
+  }
   const handleDeleteTask = (id: string) => setTasks(prev => prev.filter(t => t.id !== id));
 
   return (
@@ -561,7 +560,7 @@ const App: React.FC = () => {
                      <Wifi className="text-red-500 shrink-0 mt-1" size={20} />
                      <div className="flex flex-col gap-1">
                         <span className="font-bold text-red-600 text-sm">اتصال VPN الزامی است</span>
-                        <span className="text-xs text-gray-600">به دلیل تحریم‌های گوگل، برای ارسال درخواست‌ها حتماً فیلترشکن گوشی یا سیستم خود را روشن نگه دارید.</span>
+                        <span className="text-xs text-gray-600">به دلیل تحریم‌های گوگل، برای ارسال درخواست‌ها حتماً فیلترشکن (VPN) گوشی یا سیستم خود را روشن نگه دارید.</span>
                      </div>
                  </div>
 
@@ -618,7 +617,7 @@ const App: React.FC = () => {
                                  <div className="p-2 bg-green-50 text-green-600 rounded-lg"><Users size={20} /></div>
                              </div>
                              <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                                 <div className="h-full bg-green-500 rounded-full transition-all duration-1000" style={{ width: `${(activeUsersCount/100)*100}%` }}></div>
+                                 <div className="h-full bg-green-500 rounded-full transition-all duration-1000" style={{ width: '100%' }}></div>
                              </div>
                          </div>
 

@@ -190,7 +190,7 @@ export const generateInsuranceResponse = async (
   const errorName = (lastError?.name || "").toLowerCase();
 
   if (msg.includes("fetch failed") || msg.includes("network") || msg.includes("failed to fetch") || errorName === "typeerror") {
-    customMessage = "خطا در اتصال به اینترنت. لطفاً اتصال خود یا VPN را بررسی کنید.";
+    customMessage = "خطا در اتصال به اینترنت. لطفاً فیلترشکن (VPN) خود را روشن کنید یا اتصال را بررسی نمایید.";
   } else if (msg.includes("api key") || msg.includes("400") || msg.includes("401") || msg.includes("403") || msg.includes("invalid_argument")) {
     throw new Error("API_KEY_INVALID");
   } else if (msg.includes("429") || msg.includes("quota") || msg.includes("exhausted") || msg.includes("too many requests")) {
