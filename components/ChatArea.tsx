@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Message, Role, ModelId } from '../types';
@@ -475,7 +476,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
 
   return (
-    <div className="flex flex-col flex-1 bg-day-bg h-full relative overflow-hidden">
+    <div className="flex flex-col flex-1 min-h-0 bg-day-bg relative overflow-hidden">
       
       {/* Sticky Header Toolbar */}
       <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 px-4 py-2 flex items-center justify-between shadow-sm">

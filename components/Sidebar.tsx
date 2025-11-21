@@ -1,8 +1,8 @@
 
 import React, { useState, DragEvent, useRef, useMemo } from 'react';
-import { KnowledgeSource, Task, ChatSession, ModelId } from '../types';
+import { KnowledgeSource, ChatSession, ModelId } from '../types';
 import { AVAILABLE_MODELS } from '../services/geminiService';
-import { Plus, FileText, Trash2, CheckCircle, Database, XCircle, ShieldCheck, UploadCloud, Loader, MessageSquarePlus, X, Search, ListTodo, Calendar, Clock, Square, CheckSquare, ArrowUpDown, History, ArchiveRestore, Eraser, MessageSquare, Globe, Link, Github, Phone, Key, Cpu, Check, ChevronDown, Zap, Brain, Activity, FlaskConical, Sparkles, BarChart3, Info } from './Icons';
+import { Plus, FileText, Trash2, Database, ShieldCheck, UploadCloud, Loader, MessageSquarePlus, X, Search, ArrowUpDown, History, Eraser, MessageSquare, Globe, Link, Cpu, Check, ChevronDown, BarChart3, Info, ChevronUp, Wifi, Phone, Github, Key } from './Icons';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
@@ -13,7 +13,6 @@ interface SidebarProps {
   isOpen: boolean;
   toggleSidebar: () => void;
   sources: KnowledgeSource[];
-  tasks: Task[];
   chatHistory: ChatSession[];
   selectedModel: ModelId;
   appVersion: string;
@@ -21,9 +20,6 @@ interface SidebarProps {
   onAddSource: (source: KnowledgeSource) => void;
   onToggleSource: (id: string) => void;
   onDeleteSource: (id: string) => void;
-  onAddTask: (task: Task) => void;
-  onToggleTask: (id: string) => void;
-  onDeleteTask: (id: string) => void;
   onNewChat: () => void;
   onLoadChat: (session: ChatSession) => void;
   onDeleteChat: (id: string) => void;
@@ -32,9 +28,11 @@ interface SidebarProps {
   onOpenSettings: () => void;
   onOpenDashboard: () => void;
   onOpenHelp: () => void;
+  isOnline: boolean;
+  ping: number | null;
 }
 
-type Tab = 'sources' | 'tasks' | 'history';
+type Tab = 'sources' | 'history';
 type SortOption = 'newest' | 'oldest' | 'alpha';
 type AddMode = 'file' | 'link';
 
@@ -42,7 +40,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   toggleSidebar,
   sources,
-  tasks,
   chatHistory,
   selectedModel,
   appVersion,
@@ -50,9 +47,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   onAddSource,
   onToggleSource,
   onDeleteSource,
-  onAddTask,
-  onToggleTask,
-  onDeleteTask,
   onNewChat,
   onLoadChat,
   onDeleteChat,
@@ -60,7 +54,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   onClearCache,
   onOpenSettings,
   onOpenDashboard,
-  onOpenHelp
+  onOpenHelp,
+  isOnline,
+  ping
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('sources');
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
@@ -76,11 +72,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('newest');
   
-  // Task State
-  const [isAddingTask, setIsAddingTask] = useState(false);
-  const [newTaskText, setNewTaskText] = useState('');
-  const [newTaskDate, setNewTaskDate] = useState('');
-
   // File Upload State
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
@@ -145,7 +136,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       title: newTitle,
       content: newContent,
       type: addMode === 'link' ? 'link' : 'text',
-      isActive: true // Always active by default
+      isActive: true
     };
     
     onAddSource(newSource);
@@ -155,44 +146,11 @@ const Sidebar: React.FC<SidebarProps> = ({
     setIsAdding(false);
   };
 
-  const handleCreateTask = () => {
-    if (!newTaskText.trim()) return;
-
-    const safeDate = newTaskDate ? `${newTaskDate}T12:00:00` : '';
-
-    const newTask: Task = {
-        id: Date.now().toString(),
-        text: newTaskText,
-        dueDate: safeDate,
-        isCompleted: false,
-        createdAt: Date.now()
-    };
-    
-    onAddTask(newTask);
-    setNewTaskText('');
-    setNewTaskDate('');
-    setIsAddingTask(false);
-  };
-
-  const getTaskStatusColor = (dueDate: string, isCompleted: boolean) => {
-    if (isCompleted) return 'text-gray-400';
-    if (!dueDate) return 'text-gray-600';
-    
-    const today = new Date().toISOString().split('T')[0];
-    const taskDate = dueDate.split('T')[0];
-    
-    if (taskDate < today) return 'text-day-accent'; // Overdue
-    if (taskDate === today) return 'text-amber-500'; // Due today
-    return 'text-day-teal'; // Future
-  };
-
   // --- File Parsing Logic ---
-
   const extractTextFromPdf = async (arrayBuffer: ArrayBuffer): Promise<string> => {
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     let fullText = '';
     const totalPages = pdf.numPages;
-    
     for (let i = 1; i <= totalPages; i++) {
       setUploadProgress(`در حال پردازش صفحه ${i} از ${totalPages}...`);
       const page = await pdf.getPage(i);
@@ -212,17 +170,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   const processFile = async (file: File) => {
     setIsProcessingFile(true);
     setUploadProgress('در حال بارگذاری فایل...');
-    
     try {
       let text = '';
       const arrayBuffer = await file.arrayBuffer();
-
       if (file.type === 'application/pdf') {
         text = await extractTextFromPdf(arrayBuffer);
-      } else if (
-        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
-        file.name.endsWith('.docx')
-      ) {
+      } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.endsWith('.docx')) {
         text = await extractTextFromDocx(arrayBuffer);
       } else {
         setUploadProgress('در حال خواندن فایل متنی...');
@@ -245,34 +198,25 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  // --- URL Fetch Logic ---
   const handleFetchUrl = async () => {
     if (!urlInput.trim()) return;
-    
     setIsProcessingFile(true);
     setUploadProgress('در حال دریافت محتوای وبسایت...');
-
     try {
         const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(urlInput)}`;
         const response = await fetch(proxyUrl);
         const data = await response.json();
-
         if (data.contents) {
             setUploadProgress('در حال استخراج متن...');
             const parser = new DOMParser();
             const doc = parser.parseFromString(data.contents, 'text/html');
-
             doc.querySelectorAll('script, style, iframe, nav, footer, header, aside, noscript').forEach(el => el.remove());
-
             const title = doc.title || urlInput;
             const text = doc.body.innerText || doc.body.textContent || '';
-            
             const cleanText = text.replace(/\s+/g, ' ').trim();
-
             if (cleanText.length < 50) {
                 throw new Error('محتوای متنی کافی در این صفحه یافت نشد.');
             }
-
             setNewTitle(title);
             setNewContent(cleanText);
         } else {
@@ -288,26 +232,14 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   // --- Drag and Drop Handlers ---
-
-  const onDragOver = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const onDragLeave = (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
+  const onDragOver = (e: DragEvent<HTMLDivElement>) => { e.preventDefault(); setIsDragging(true); };
+  const onDragLeave = (e: DragEvent<HTMLDivElement>) => { e.preventDefault(); setIsDragging(false); };
   const onDrop = async (e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
+    e.preventDefault(); setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       await processFile(e.dataTransfer.files[0]);
     }
   };
-
   const onFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
@@ -335,397 +267,269 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Container */}
       <aside className={`
-        fixed md:relative right-0 z-50 h-full bg-white border-l border-gray-200 shadow-2xl md:shadow-none transition-transform duration-300 ease-in-out flex flex-col
+        fixed md:relative right-0 z-50 h-full bg-gray-50 border-l border-gray-200 shadow-2xl md:shadow-none transition-transform duration-300 ease-in-out flex flex-col
         w-[85vw] md:w-80 max-w-[350px] md:max-w-none
         ${isOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
       `}>
         
-        {/* Header */}
-        <div className="p-6 border-b border-white/10 bg-gradient-to-br from-day-dark to-day-teal text-white">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <ShieldCheck size={32} className="text-white drop-shadow-sm" />
+        {/* === HEADER === */}
+        <div className="px-5 py-4 bg-white border-b border-gray-200 shadow-sm z-20">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5 text-day-dark">
+              <div className="bg-day-teal text-white p-1.5 rounded-lg shadow-sm">
+                <ShieldCheck size={22} />
+              </div>
               <div>
-                <h1 className="text-xl font-bold tracking-tight">هوش مصنوعی بیمه دی</h1>
-                <p className="text-xs text-cyan-100 opacity-90 font-light">دستیار هوشمند تحلیل بیمه‌نامه</p>
+                <h1 className="text-lg font-black tracking-tight leading-none">هوش مصنوعی بیمه دی</h1>
               </div>
             </div>
-            
-            <div className="flex items-center gap-1">
-              {/* Dashboard Button */}
-              <button 
-                onClick={onOpenDashboard} 
-                className="p-1.5 hover:bg-white/20 rounded-lg transition-colors text-white"
-                title="وضعیت سیستم"
-              >
-                <BarChart3 size={20} />
-              </button>
-              
-               {/* Help/Info Button */}
-               <button 
-                onClick={onOpenHelp} 
-                className="p-1.5 hover:bg-white/20 rounded-lg transition-colors text-white"
-                title="راهنما و درباره"
-              >
-                <Info size={20} />
-              </button>
-
-              {/* API Settings Button */}
-              <button 
-                onClick={onOpenSettings} 
-                className="p-1.5 hover:bg-white/20 rounded-lg transition-colors text-white"
-                title="تنظیمات API"
-              >
-                <Key size={20} />
-              </button>
-
-              {/* Mobile Close Button */}
-              <button 
-                onClick={toggleSidebar} 
-                className="md:hidden p-1 hover:bg-white/20 rounded-full transition-colors"
-              >
-                <X size={20} className="text-white" />
-              </button>
-            </div>
+            <button onClick={toggleSidebar} className="md:hidden p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                <X size={20} className="text-gray-500" />
+            </button>
           </div>
 
-          {/* Model Selection Dropdown */}
-          <div className="relative">
-             <button 
-               onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
-               className="w-full flex items-center justify-between bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-xs text-white transition-colors border border-white/10"
-             >
-               <div className="flex items-center gap-2">
-                 <Cpu size={14} className="text-cyan-200" />
-                 <span className="truncate max-w-[180px]">{getActiveModelName()}</span>
-               </div>
-               <ChevronDown size={12} className={`transition-transform ${isModelMenuOpen ? 'rotate-180' : ''}`} />
+          <div className="flex items-center gap-2 mb-1">
+             <button onClick={() => { onNewChat(); if(window.innerWidth < 768) toggleSidebar(); }} className="flex-1 bg-day-dark text-white py-2 px-3 rounded-xl text-xs font-bold hover:bg-gray-800 transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95">
+                <MessageSquarePlus size={16} />
+                گفتگوی جدید
              </button>
-
-             {isModelMenuOpen && (
-               <div className="absolute top-full right-0 w-full mt-1 bg-white rounded-lg shadow-xl border border-gray-100 py-1 text-gray-700 z-50 overflow-hidden animate-fade-in max-h-[350px] overflow-y-auto custom-scrollbar">
-                 <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">
-                    <span className="text-[10px] font-bold text-gray-500">انتخاب مدل (نرخ استفاده رایگان)</span>
-                 </div>
-                 {AVAILABLE_MODELS.map((model) => (
-                   <button 
-                     key={model.id}
-                     onClick={() => { onSelectModel(model.id); setIsModelMenuOpen(false); }}
-                     className="w-full px-3 py-2 text-right hover:bg-cyan-50 flex flex-col gap-1 border-b border-gray-50 last:border-0 transition-colors"
-                   >
-                     <div className="flex items-center justify-between w-full">
-                        <span className={`text-xs font-bold ${selectedModel === model.id ? 'text-day-teal' : 'text-gray-800'}`}>
-                            {model.name}
-                        </span>
-                        {selectedModel === model.id && <Check size={12} className="text-day-teal" />}
-                     </div>
-                     <span className="text-[10px] text-gray-500">{model.description}</span>
-                     <div className="flex flex-wrap gap-1 mt-0.5">
-                        {model.isNew && <span className="text-[9px] bg-blue-100 text-blue-600 px-1.5 rounded flex items-center gap-0.5"><Zap size={8} /> جدید</span>}
-                        {model.isStable && <span className="text-[9px] bg-green-100 text-green-600 px-1.5 rounded flex items-center gap-0.5"><CheckCircle size={8} /> پایدار</span>}
-                        {model.isPro && <span className="text-[9px] bg-purple-100 text-purple-600 px-1.5 rounded flex items-center gap-0.5"><Brain size={8} /> هوشمند</span>}
-                        {model.isExperimental && <span className="text-[9px] bg-amber-100 text-amber-600 px-1.5 rounded flex items-center gap-0.5"><FlaskConical size={8} /> آزمایشی</span>}
-                        <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 rounded flex items-center gap-0.5"><Activity size={8} /> {model.rpm} RPM</span>
-                     </div>
-                   </button>
-                 ))}
-               </div>
-             )}
+             <div className="flex gap-1">
+               <button onClick={onOpenDashboard} className="p-2 bg-gray-100 hover:bg-day-teal hover:text-white rounded-lg transition-colors text-gray-500" title="وضعیت سیستم"><BarChart3 size={18} /></button>
+               <button onClick={onOpenSettings} className="p-2 bg-gray-100 hover:bg-day-teal hover:text-white rounded-lg transition-colors text-gray-500" title="تنظیمات API"><Key size={18} /></button>
+               <button onClick={onOpenHelp} className="p-2 bg-gray-100 hover:bg-day-teal hover:text-white rounded-lg transition-colors text-gray-500" title="راهنما"><Info size={18} /></button>
+             </div>
           </div>
         </div>
 
-        {/* New Chat Button */}
-        <div className="p-4 pb-2">
-          <button 
-            onClick={() => {
-              onNewChat();
-              if (window.innerWidth < 768) toggleSidebar();
-            }}
-            className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 py-3 rounded-xl hover:border-day-teal hover:text-day-teal transition-all shadow-sm group"
-          >
-            <MessageSquarePlus size={18} className="text-gray-400 group-hover:text-day-teal transition-colors" />
-            <span className="font-medium text-sm">گفتگوی جدید</span>
-          </button>
-        </div>
-
-        {/* TABS */}
-        <div className="px-4 pt-2">
-            <div className="flex bg-gray-100 rounded-xl p-1">
-                <button 
-                    onClick={() => setActiveTab('sources')}
-                    className={`flex-1 py-2 text-[11px] md:text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === 'sources' ? 'bg-white text-day-teal shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                    <Database size={14} />
-                    منابع
-                </button>
-                <button 
-                    onClick={() => setActiveTab('tasks')}
-                    className={`flex-1 py-2 text-[11px] md:text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === 'tasks' ? 'bg-white text-day-teal shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                    <ListTodo size={14} />
-                    وظایف
-                </button>
-                <button 
-                    onClick={() => setActiveTab('history')}
-                    className={`flex-1 py-2 text-[11px] md:text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === 'history' ? 'bg-white text-day-teal shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                    <History size={14} />
-                    تاریخچه
-                </button>
+        {/* === TABS === */}
+        <div className="px-4 pt-3 bg-gray-50">
+            <div className="flex bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
+                <button onClick={() => setActiveTab('sources')} className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${activeTab === 'sources' ? 'bg-day-teal text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}><Database size={14} /> منابع</button>
+                <button onClick={() => setActiveTab('history')} className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${activeTab === 'history' ? 'bg-day-teal text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}><History size={14} /> آرشیو</button>
             </div>
         </div>
 
-        {/* ... Tab Contents ... */}
-        {/* === SOURCES TAB === */}
-        {activeTab === 'sources' && (
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-              {/* Search */}
-              {sources.length > 0 && (
-              <div className="px-4 mt-4">
-                <div className="relative group">
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <Search size={16} className="text-gray-400 group-focus-within:text-day-teal transition-colors" />
-                  </div>
-                  <input
-                    type="text"
-                    className="block w-full pr-10 pl-8 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-100 focus:border-day-teal transition-all"
-                    placeholder="جستجو در منابع..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 hover:text-red-500 transition-colors"
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Sources List */}
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2 tracking-wider">
-                  <Database size={14} />
-                  کتابخانه منابع
-                </h2>
-                
-                <div className="flex items-center gap-2">
-                    <div className="relative flex items-center bg-gray-50 border border-gray-200 rounded-lg px-2 py-0.5">
-                         <ArrowUpDown size={10} className="text-gray-400 ml-1" />
-                        <select 
-                            value={sortOption}
-                            onChange={(e) => setSortOption(e.target.value as SortOption)}
-                            className="text-[10px] bg-transparent text-gray-600 focus:outline-none cursor-pointer appearance-none font-medium"
-                        >
-                            <option value="newest">جدیدترین</option>
-                            <option value="oldest">قدیمی‌ترین</option>
-                            <option value="alpha">الفبا</option>
-                        </select>
-                    </div>
-                    <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium border border-gray-200">
-                    {processedSources.length} سند
-                    </span>
-                </div>
-              </div>
-
-              {sources.length === 0 && !isAdding && (
-                <div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl bg-gray-50/50">
-                  <p className="text-sm font-medium">هنوز سندی اضافه نشده است</p>
-                  <p className="text-xs mt-2 opacity-70">برای پاسخگویی دقیق، اسناد خود را آپلود کنید</p>
-                </div>
-              )}
-
-              <div className="space-y-3">
-                {processedSources.map(source => {
-                  const isExpanded = expandedItems.has(source.id);
-                  const shouldTruncate = source.content.length > 100;
-                  const contentToShow = isExpanded 
-                    ? source.content 
-                    : (shouldTruncate ? source.content.substring(0, 100) + '...' : source.content);
-
-                  return (
-                    <div 
-                      key={source.id} 
-                      className={`p-3 rounded-xl border transition-all duration-200 ${source.isActive ? 'border-day-light/50 bg-cyan-50/50 shadow-sm ring-1 ring-cyan-100' : 'border-gray-100 bg-gray-50 opacity-60 hover:opacity-100'}`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                         {/* Icon and Title */}
-                        <div className="flex items-start gap-2 overflow-hidden flex-1 min-w-0">
-                          <div className={`p-1.5 rounded-lg mt-0.5 shrink-0 ${source.isActive ? 'bg-white text-day-teal' : 'bg-gray-200 text-gray-500'}`}>
-                            {source.type === 'link' ? <Globe size={16} /> : <FileText size={16} />}
+        {/* === CONTENT AREA === */}
+        <div className="flex-1 overflow-hidden relative bg-gray-50">
+            
+            {/* --- SOURCES TAB --- */}
+            {activeTab === 'sources' && (
+                <>
+                  {/* Add Source OVERLAY */}
+                  {isAdding ? (
+                      <div className="absolute inset-0 bg-white z-30 flex flex-col animate-fade-in">
+                          <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-white shadow-sm z-10">
+                              <span className="text-sm font-bold text-day-dark flex items-center gap-2"><Plus size={16} /> افزودن سند جدید</span>
+                              <button onClick={() => setIsAdding(false)} className="text-gray-400 hover:text-red-500 bg-gray-50 hover:bg-red-50 p-1.5 rounded-lg transition-all"><X size={18} /></button>
                           </div>
-                          <div className="flex flex-col min-w-0 flex-1">
-                              <span className={`text-sm font-bold break-words leading-tight ${source.isActive ? 'text-day-dark' : 'text-gray-600'}`}>
-                                {highlightText(source.title, searchQuery)}
-                              </span>
-                          </div>
-                        </div>
-
-                        {/* Delete Button */}
-                        <button 
-                          onClick={() => onDeleteSource(source.id)}
-                          className="text-gray-300 hover:text-red-500 transition-colors p-1.5 hover:bg-red-50 rounded-lg shrink-0"
-                          title="حذف سند"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-
-                      {/* Content Snippet */}
-                      <div className="mt-3 pl-1 pr-1">
-                        <div className="text-[11px] text-gray-600 leading-relaxed whitespace-pre-wrap font-light text-justify break-words bg-white/50 p-2 rounded-lg border border-gray-100/50">
-                          {highlightText(contentToShow, searchQuery)}
-                        </div>
-                      </div>
-                      
-                      {/* Footer Actions */}
-                      <div className="flex items-center justify-between mt-3 border-t border-black/5 pt-2 flex-wrap gap-2">
-                            {/* Read More */}
-                            {shouldTruncate ? (
-                              <button 
-                                onClick={() => toggleExpand(source.id)}
-                                className="text-[10px] text-day-teal font-bold hover:underline cursor-pointer flex items-center gap-1 px-1"
-                              >
-                                {isExpanded ? 'بستن' : 'مشاهده متن کامل'}
-                              </button>
-                            ) : <span />}
-                            
-                            {/* CLEAR Visual Toggle Switch */}
-                            <button 
-                              onClick={() => onToggleSource(source.id)}
-                              className="flex items-center gap-2 group cursor-pointer ml-auto"
-                              title={source.isActive ? "کلیک برای غیرفعال کردن" : "کلیک برای فعال کردن"}
-                            >
-                              <span className={`text-[10px] font-bold ${source.isActive ? 'text-green-600' : 'text-gray-400'}`}>
-                                {source.isActive ? 'وضعیت: فعال' : 'وضعیت: غیرفعال'}
-                              </span>
-                              <div className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-300 flex items-center ${source.isActive ? 'bg-green-500' : 'bg-gray-300'}`}>
-                                  <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-300 ${source.isActive ? '-translate-x-4' : 'translate-x-0'}`}></div>
+                          
+                          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                              <div className="flex bg-gray-100 p-1 rounded-xl mb-5">
+                                  <button onClick={() => setAddMode('file')} className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold rounded-lg transition-all ${addMode === 'file' ? 'bg-white text-day-teal shadow-sm' : 'text-gray-500'}`}><UploadCloud size={16} /> آپلود فایل</button>
+                                  <button onClick={() => setAddMode('link')} className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold rounded-lg transition-all ${addMode === 'link' ? 'bg-white text-day-teal shadow-sm' : 'text-gray-500'}`}><Link size={16} /> لینک وبسایت</button>
                               </div>
-                            </button>
-                        </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-             <div className="p-4 border-t border-gray-100 bg-gray-50">
-              {!isAdding ? (
-                <button 
-                  onClick={() => setIsAdding(true)}
-                  className="w-full py-3.5 flex items-center justify-center gap-2 bg-day-teal text-white rounded-xl hover:bg-day-dark transition-all shadow-lg shadow-cyan-100 hover:shadow-cyan-200"
-                >
-                  <Plus size={20} />
-                  <span className="font-bold text-sm">افزودن سند جدید</span>
-                </button>
-              ) : (
-                <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-lg animate-fade-in flex flex-col max-h-[450px] overflow-y-auto">
-                  <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
-                    <span className="text-sm font-bold text-day-dark">بارگذاری سند</span>
-                    <button onClick={() => setIsAdding(false)} className="text-gray-400 hover:text-day-accent">
-                      <XCircle size={20} />
-                    </button>
-                  </div>
 
-                  <div className="flex bg-gray-100 p-1 rounded-lg mb-4">
-                      <button onClick={() => setAddMode('file')} className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-medium rounded-md transition-all ${addMode === 'file' ? 'bg-white text-day-teal shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                          <UploadCloud size={14} /> آپلود فایل
-                      </button>
-                      <button onClick={() => setAddMode('link')} className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-medium rounded-md transition-all ${addMode === 'link' ? 'bg-white text-day-teal shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                          <Link size={14} /> لینک وبسایت
-                      </button>
-                  </div>
+                              {addMode === 'file' ? (
+                                  <div onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop} onClick={() => !isProcessingFile && fileInputRef.current?.click()} className={`mb-5 border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-3 group ${isDragging ? 'border-day-teal bg-cyan-50' : 'border-gray-200 hover:border-day-teal hover:bg-gray-50'}`}>
+                                    <input type="file" ref={fileInputRef} onChange={onFileInputChange} className="hidden" accept=".txt,.md,.json,.csv,.pdf,.docx" disabled={isProcessingFile} />
+                                    {isProcessingFile ? (
+                                      <div className="flex flex-col items-center gap-3"><Loader size={32} className="animate-spin text-day-teal" /><span className="text-xs font-bold text-day-dark">{uploadProgress}</span></div>
+                                    ) : (
+                                      <><div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-cyan-100 transition-colors"><UploadCloud size={24} className="text-gray-400 group-hover:text-day-teal" /></div><div className="flex flex-col gap-1"><span className="text-sm font-bold text-gray-700">فایل را انتخاب یا رها کنید</span><span className="text-[10px] text-gray-400 font-mono">PDF, DOCX, TXT</span></div></>
+                                    )}
+                                  </div>
+                              ) : (
+                                  <div className="mb-5"><div className="flex gap-2"><input type="url" placeholder="https://example.com" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} className="flex-1 text-sm p-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-day-teal outline-none dir-ltr text-left transition-all" /><button onClick={handleFetchUrl} disabled={!urlInput || isProcessingFile} className="bg-day-dark text-white px-4 rounded-xl text-sm font-bold hover:bg-day-teal disabled:opacity-50 transition-colors">{isProcessingFile ? <Loader size={16} className="animate-spin" /> : 'دریافت'}</button></div>{isProcessingFile && <div className="mt-3 flex items-center gap-2 text-xs text-day-teal bg-cyan-50 p-2 rounded-lg"><Loader size={14} className="animate-spin" /><span>{uploadProgress}</span></div>}</div>
+                              )}
 
-                  {addMode === 'file' ? (
-                      <div onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop} onClick={() => !isProcessingFile && fileInputRef.current?.click()} className={`mb-4 border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-3 min-h-[140px] group ${isDragging ? 'border-day-teal bg-cyan-50' : 'border-gray-200 hover:border-day-teal hover:bg-gray-50'} ${isProcessingFile ? 'cursor-default hover:bg-white' : ''}`}>
-                        <input type="file" ref={fileInputRef} onChange={onFileInputChange} className="hidden" accept=".txt,.md,.json,.csv,.pdf,.docx" disabled={isProcessingFile} />
-                        {isProcessingFile ? (
-                          <div className="flex flex-col items-center gap-3 animate-pulse"><Loader size={32} className="animate-spin text-day-teal" /><span className="text-xs text-day-dark font-bold">{uploadProgress || 'در حال پردازش...'}</span></div>
-                        ) : (
-                          <><div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-cyan-100 transition-colors"><UploadCloud size={24} className="text-gray-400 group-hover:text-day-teal" /></div><div className="flex flex-col gap-1"><span className="text-xs text-gray-700 font-bold">کلیک کنید یا فایل را اینجا رها کنید</span><span className="text-[10px] text-gray-400">PDF, DOCX, TXT</span></div></>
-                        )}
+                              <div className="space-y-4">
+                                <div className="space-y-1"><label className="text-xs font-bold text-gray-500 mr-1">عنوان سند</label><input type="text" className="w-full p-3 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-day-teal outline-none transition-all" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} disabled={isProcessingFile} /></div>
+                                <div className="space-y-1"><label className="text-xs font-bold text-gray-500 mr-1">محتوای متنی</label><textarea className="w-full p-3 text-sm border border-gray-200 rounded-xl h-40 bg-gray-50 focus:bg-white focus:border-day-teal outline-none resize-none transition-all custom-scrollbar leading-relaxed" value={newContent} onChange={(e) => setNewContent(e.target.value)} disabled={isProcessingFile} /></div>
+                              </div>
+                          </div>
+                          <div className="p-4 border-t border-gray-100 bg-gray-50">
+                              <button onClick={handleAdd} disabled={!newTitle || !newContent || isProcessingFile} className={`w-full text-white py-3.5 rounded-xl text-sm font-bold transition-all shadow-lg ${(!newTitle || !newContent || isProcessingFile) ? 'bg-gray-300 cursor-not-allowed shadow-none' : 'bg-day-accent hover:bg-pink-700 hover:shadow-pink-200 hover:-translate-y-0.5'}`}>ثبت در پایگاه دانش</button>
+                          </div>
                       </div>
                   ) : (
-                      <div className="mb-4"><div className="flex gap-2"><input type="url" placeholder="https://example.com" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} className="flex-1 text-sm p-2 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-day-teal outline-none dir-ltr text-left" /><button onClick={handleFetchUrl} disabled={!urlInput || isProcessingFile} className="bg-day-dark text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-day-teal disabled:opacity-50 transition-colors">{isProcessingFile ? <Loader size={14} className="animate-spin" /> : 'دریافت'}</button></div>{isProcessingFile && <div className="mt-2 flex items-center gap-2 text-xs text-day-teal"><Loader size={12} className="animate-spin" /><span>{uploadProgress}</span></div>}<p className="text-[10px] text-gray-400 mt-2">محتوای متنی صفحه به صورت خودکار استخراج و تمیز می‌شود.</p></div>
-                  )}
-                  
-                  <div className="space-y-3">
-                    <input type="text" placeholder="عنوان سند" className="w-full p-3 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-day-teal focus:ring-2 focus:ring-cyan-100 outline-none transition-all" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} disabled={isProcessingFile} />
-                    <textarea placeholder="متن استخراج شده..." className="w-full p-3 text-sm border border-gray-200 rounded-xl h-24 bg-gray-50 focus:bg-white focus:border-day-teal focus:ring-2 focus:ring-cyan-100 outline-none resize-none transition-all custom-scrollbar leading-relaxed" value={newContent} onChange={(e) => setNewContent(e.target.value)} disabled={isProcessingFile} />
-                    <button onClick={handleAdd} disabled={!newTitle || !newContent || isProcessingFile} className={`w-full text-white py-3 rounded-xl text-sm font-bold transition-all shadow-md ${(!newTitle || !newContent || isProcessingFile) ? 'bg-gray-300 cursor-not-allowed shadow-none' : 'bg-day-accent hover:bg-pink-700 hover:shadow-lg transform hover:-translate-y-0.5'}`}>ثبت در پایگاه دانش</button>
-                  </div>
-                </div>
-              )}
-            </div>
-            </div>
-        )}
-
-        {/* === TASKS TAB === */}
-        {activeTab === 'tasks' && (
-             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                   <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2 tracking-wider"><ListTodo size={14} /> لیست وظایف</h2>
-                        <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium border border-gray-200">{tasks.filter(t => !t.isCompleted).length} فعال</span>
-                   </div>
-                   {tasks.length === 0 && !isAddingTask && (<div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl bg-gray-50/50"><p className="text-sm font-medium">هنوز وظیفه‌ای ثبت نشده</p><p className="text-xs mt-2 opacity-70">کارهای مربوط به بیمه خود را اینجا مدیریت کنید</p></div>)}
-                   <div className="space-y-3">
-                        {tasks.map(task => {
-                            const statusColor = getTaskStatusColor(task.dueDate, task.isCompleted);
-                            return (
-                                <div key={task.id} className={`p-3 rounded-xl border transition-all ${task.isCompleted ? 'bg-gray-50 border-gray-100' : 'bg-white border-gray-200 shadow-sm'}`}>
-                                    <div className="flex items-start gap-3">
-                                        <button onClick={() => onToggleTask(task.id)} className={`mt-0.5 transition-colors ${task.isCompleted ? 'text-day-teal' : 'text-gray-300 hover:text-day-teal'}`}>{task.isCompleted ? <CheckSquare size={20} /> : <Square size={20} />}</button>
-                                        <div className="flex-1 min-w-0"><p className={`text-sm font-medium leading-relaxed break-words ${task.isCompleted ? 'text-gray-400 line-through decoration-gray-300' : 'text-gray-800'}`}>{task.text}</p>{task.dueDate && (<div className={`flex items-center gap-1 mt-1.5 text-xs ${statusColor}`}><Clock size={12} /><span>{task.dueDate ? new Date(task.dueDate).toLocaleDateString('fa-IR') : ''}</span>{!task.isCompleted && (<span className="mr-1 font-bold">{task.dueDate.split('T')[0] < new Date().toISOString().split('T')[0] ? '(مهلت گذشته)' : task.dueDate.split('T')[0] === new Date().toISOString().split('T')[0] ? '(امروز)' : ''}</span>)}</div>)}</div>
-                                        <button onClick={() => onDeleteTask(task.id)} className="text-gray-300 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
-                                        <button onClick={() => onDeleteTask(task.id)} className="md:hidden text-gray-300 hover:text-red-500 p-1"><Trash2 size={14} /></button>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                   </div>
-            </div>
-        )}
-        {/* Add Task Section */}
-        {activeTab === 'tasks' && (
-        <div className="p-4 border-t border-gray-100 bg-gray-50">
-            {!isAddingTask ? (<button onClick={() => setIsAddingTask(true)} className="w-full py-3.5 flex items-center justify-center gap-2 bg-white text-day-teal border border-day-teal rounded-xl hover:bg-day-teal hover:text-white transition-all shadow-sm"><Plus size={20} /><span className="font-bold text-sm">افزودن وظیفه جدید</span></button>) : (
-                <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-lg animate-fade-in"><div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2"><span className="text-sm font-bold text-day-dark">وظیفه جدید</span><button onClick={() => setIsAddingTask(false)} className="text-gray-400 hover:text-day-accent"><XCircle size={20} /></button></div><div className="space-y-3"><input type="text" placeholder="عنوان کار (مثلا: تمدید بیمه شخص ثالث)" className="w-full p-3 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-day-teal outline-none transition-all" value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} autoFocus /><div className="relative"><input type="date" className="w-full p-3 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:border-day-teal outline-none transition-all appearance-none" value={newTaskDate} onChange={(e) => setNewTaskDate(e.target.value)} />{!newTaskDate && (<span className="absolute right-3 top-3.5 text-gray-400 text-sm pointer-events-none flex items-center gap-2 bg-gray-50 pr-1"><Calendar size={16} /> تاریخ سررسید</span>)}</div><button onClick={handleCreateTask} disabled={!newTaskText.trim()} className={`w-full text-white py-3 rounded-xl text-sm font-bold transition-all shadow-md ${!newTaskText.trim() ? 'bg-gray-300 cursor-not-allowed shadow-none' : 'bg-day-teal hover:bg-day-dark hover:shadow-lg'}`}>افزودن به لیست</button></div></div>
-            )}
-        </div>
-        )}
-
-
-        {/* === HISTORY TAB === */}
-        {activeTab === 'history' && (
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                   <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2 tracking-wider"><History size={14} /> آرشیو گفتگوها</h2>
-                        <div className="flex items-center gap-2"><button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClearHistory(); }} className="relative z-10 text-[10px] bg-red-50 text-red-500 px-3 py-1.5 rounded-full font-medium border border-red-100 hover:bg-red-100 transition-colors flex items-center gap-1 active:scale-95" title="حذف تمام تاریخچه" disabled={chatHistory.length === 0}><Trash2 size={12} /> حذف همه</button><span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium border border-gray-200">{chatHistory.length} مورد</span></div>
-                   </div>
-                   {chatHistory.length === 0 && (<div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl bg-gray-50/50"><p className="text-sm font-medium">آرشیو خالی است</p><p className="text-xs mt-2 opacity-70">گفتگوهای قبلی شما اینجا ذخیره می‌شوند</p></div>)}
-                   <div className="space-y-3 pb-20">
-                        {chatHistory.map(session => (
-                            <div key={session.id} className="p-3 rounded-xl bg-white border border-gray-200 shadow-sm hover:border-day-teal/50 transition-all group relative">
-                                <div className="flex items-center justify-between"><div className="flex items-center gap-3 overflow-hidden"><div className="p-2 bg-gray-100 text-gray-500 rounded-lg group-hover:bg-cyan-50 group-hover:text-day-teal transition-colors shrink-0"><MessageSquare size={16} /></div><div className="flex flex-col overflow-hidden"><span className="text-sm font-bold text-gray-700 truncate group-hover:text-day-dark transition-colors">{session.title}</span><span className="text-[10px] text-gray-400">{new Date(session.createdAt).toLocaleDateString('fa-IR')} • {session.messages.length} پیام</span></div></div></div>
-                                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100"><button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onLoadChat(session); }} className="relative z-10 flex-1 flex items-center justify-center gap-1 text-xs font-medium text-day-teal bg-cyan-50 py-2 rounded-lg hover:bg-day-teal hover:text-white transition-colors active:scale-95"><ArchiveRestore size={14} /> بازخوانی</button><button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); if(window.confirm('آیا از حذف این گفتگو اطمینان دارید؟')) onDeleteChat(session.id); }} className="relative z-10 flex items-center justify-center gap-1 text-xs font-medium text-gray-400 bg-gray-50 py-2 px-4 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors active:scale-95" title="حذف"><Trash2 size={14} /></button></div>
+                      <div className="flex flex-col h-full">
+                          {/* Search & Filter */}
+                          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200/50 space-y-3">
+                            <div className="relative">
+                              <input type="text" className="w-full pl-3 pr-9 py-2 bg-white border border-gray-200 rounded-lg text-xs focus:border-day-teal focus:ring-1 focus:ring-day-teal outline-none transition-all placeholder-gray-400" placeholder="جستجو..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                              <Search size={14} className="absolute right-3 top-2.5 text-gray-400" />
+                              {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute left-3 top-2.5 text-gray-400 hover:text-red-500"><X size={14} /></button>}
                             </div>
-                        ))}
-                   </div>
-            </div>
-        )}
-        {activeTab === 'history' && (
-            <div className="p-4 border-t border-gray-100 bg-gray-50"><button type="button" onClick={onClearCache} className="w-full py-3 flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-500 rounded-xl hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all shadow-sm active:scale-[0.99]"><Eraser size={18} /><span className="font-medium text-sm">پاک‌سازی کامل حافظه</span></button></div>
-        )}
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-gray-400 font-bold">مرتب‌سازی:</span>
+                                    <div className="relative"><select value={sortOption} onChange={(e) => setSortOption(e.target.value as SortOption)} className="bg-transparent text-[10px] font-bold text-gray-600 focus:outline-none cursor-pointer appearance-none pr-3"><option value="newest">جدیدترین</option><option value="oldest">قدیمی‌ترین</option><option value="alpha">الفبا</option></select><ArrowUpDown size={10} className="absolute left-[-15px] top-0.5 text-gray-400 pointer-events-none" /></div>
+                                </div>
+                                <span className="text-[9px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">{processedSources.length} سند</span>
+                            </div>
+                          </div>
+                          
+                          {/* List */}
+                          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar pb-20">
+                            {sources.length === 0 ? (
+                                <div className="text-center py-10 px-4"><div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3"><Database size={24} className="text-gray-300" /></div><p className="text-xs text-gray-500 font-medium">پایگاه دانش خالی است</p></div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {processedSources.map(source => {
+                                        const isExpanded = expandedItems.has(source.id);
+                                        const shouldTruncate = source.content.length > 100;
+                                        return (
+                                            <div key={source.id} className={`p-3 rounded-xl border transition-all bg-white ${source.isActive ? 'border-day-light shadow-sm ring-1 ring-cyan-50' : 'border-gray-100 opacity-80 grayscale-[0.5] hover:grayscale-0'}`}>
+                                                <div className="flex items-start justify-between gap-2 mb-2">
+                                                    <div className="flex items-center gap-2 overflow-hidden">
+                                                        <div className={`p-1.5 rounded-md shrink-0 ${source.isActive ? 'bg-cyan-50 text-day-teal' : 'bg-gray-100 text-gray-400'}`}>{source.type === 'link' ? <Globe size={14} /> : <FileText size={14} />}</div>
+                                                        <span className="text-xs font-bold text-gray-700 truncate">{highlightText(source.title, searchQuery)}</span>
+                                                    </div>
+                                                    <button onClick={() => onDeleteSource(source.id)} className="text-gray-300 hover:text-red-500 p-1 rounded-md hover:bg-red-50 transition-colors"><Trash2 size={14} /></button>
+                                                </div>
+                                                <div className="bg-gray-50 rounded-lg p-2 mb-2 border border-gray-100 text-[10px] text-gray-600 leading-relaxed text-justify break-words">
+                                                    {highlightText(isExpanded ? source.content : (shouldTruncate ? source.content.substring(0, 100) + '...' : source.content), searchQuery)}
+                                                </div>
+                                                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50">
+                                                     {shouldTruncate ? (<button onClick={() => toggleExpand(source.id)} className="text-[10px] text-blue-500 font-bold hover:underline">{isExpanded ? 'بستن' : 'بیشتر...'}</button>) : <span></span>}
+                                                     <button onClick={() => onToggleSource(source.id)} className="flex items-center gap-2 group cursor-pointer ml-auto" title={source.isActive ? "کلیک برای غیرفعال کردن" : "کلیک برای فعال کردن"}>
+                                                          <span className={`text-[10px] font-bold w-24 text-left transition-colors ${source.isActive ? 'text-green-600' : 'text-gray-400'}`}>{source.isActive ? 'وضعیت: فعال' : 'وضعیت: غیرفعال'}</span>
+                                                          <div className={`w-8 h-4 rounded-full p-0.5 transition-colors duration-300 flex items-center ${source.isActive ? 'bg-green-500' : 'bg-gray-300'}`}><div className={`w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-300 ${source.isActive ? '-translate-x-4' : 'translate-x-0'}`}></div></div>
+                                                     </button>
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                          </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-500 mt-auto">
-            <p className="text-[10px] font-medium mb-2 tracking-wide">طراحی و توسعه توسط <span className="text-day-teal font-bold">Mr.V</span></p>
-            <div className="flex items-center gap-4 mb-2"><a href="https://github.com/MrV006" target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors"><Github size={16} /></a><a href="tel:09902076468" className="hover:text-green-600 transition-colors"><Phone size={16} /></a></div>
-            <span className="text-[9px] opacity-50 font-mono">{appVersion}</span>
+                          {/* Floating Add Button */}
+                          <div className="absolute bottom-4 left-4 right-4">
+                             <button onClick={() => setIsAdding(true)} className="w-full py-3 bg-day-teal text-white rounded-xl shadow-lg shadow-cyan-100 hover:shadow-cyan-200 hover:bg-day-dark transition-all flex items-center justify-center gap-2 font-bold text-sm transform active:scale-[0.98]">
+                                <Plus size={18} /> افزودن سند جدید
+                             </button>
+                          </div>
+                      </div>
+                  )}
+                </>
+            )}
+
+            {/* --- HISTORY TAB --- */}
+            {activeTab === 'history' && (
+                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar pb-20 flex flex-col">
+                    {/* Header */}
+                    <div className="flex justify-between items-center mb-6">
+                         <span className="text-sm font-bold text-day-dark flex items-center gap-2"><History size={18}/> آرشیو گفتگوها</span>
+                         {chatHistory.length > 0 ? (
+                            <button type="button" onClick={onClearHistory} className="flex items-center gap-1 text-[11px] bg-red-50 text-red-500 px-3 py-1.5 rounded-full hover:bg-red-100 transition-colors border border-red-100 font-bold">
+                                <span>حذف همه</span>
+                                <Trash2 size={12} />
+                            </button>
+                         ) : (
+                            <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded-full">0 مورد</span>
+                         )}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1">
+                        {chatHistory.length === 0 ? (
+                            <div className="border-2 border-dashed border-gray-100 rounded-3xl p-8 flex flex-col items-center justify-center text-center h-[200px] bg-gray-50/50">
+                                <h4 className="text-gray-400 font-bold text-lg mb-2">آرشیو خالی است</h4>
+                                <p className="text-gray-400 text-xs">گفتگوهای قبلی شما اینجا ذخیره می‌شوند</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {chatHistory.map(session => (
+                                    <div key={session.id} className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm hover:border-day-teal/50 transition-all group">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <div className="p-2 bg-gray-100 rounded-lg text-gray-500"><MessageSquare size={16} /></div>
+                                            <div className="overflow-hidden"><h4 className="text-xs font-bold text-gray-700 truncate">{session.title}</h4><span className="text-[10px] text-gray-400">{new Date(session.createdAt).toLocaleDateString('fa-IR')}</span></div>
+                                        </div>
+                                        <div className="flex gap-2 mt-2">
+                                            <button type="button" onClick={(e) => {e.preventDefault(); e.stopPropagation(); onLoadChat(session);}} className="flex-1 bg-cyan-50 text-day-teal text-[10px] font-bold py-1.5 rounded hover:bg-day-teal hover:text-white transition-colors relative z-10">بازخوانی</button>
+                                            <button type="button" onClick={(e) => {e.preventDefault(); e.stopPropagation(); onDeleteChat(session.id);}} className="bg-gray-50 text-gray-400 px-3 rounded hover:bg-red-50 hover:text-red-500 transition-colors relative z-10"><Trash2 size={14} /></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Bottom Button */}
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                        <button type="button" onClick={onClearCache} className="w-full py-4 border border-gray-200 text-gray-600 text-sm font-bold rounded-2xl hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 shadow-sm bg-white group">
+                             <span>پاک‌سازی کامل حافظه</span>
+                             <Eraser size={18} className="text-gray-400 group-hover:text-gray-600" />
+                        </button>
+                    </div>
+                </div>
+            )}
+
+        </div>
+
+        {/* === FOOTER === */}
+        <div className="bg-white border-t border-gray-200 p-4 z-40">
+            {/* Model Selector */}
+            <div className="relative mb-3">
+                 <button onClick={() => setIsModelMenuOpen(!isModelMenuOpen)} className="w-full flex items-center justify-between bg-gray-50 hover:bg-gray-100 border border-gray-200 px-3 py-2.5 rounded-xl text-xs transition-colors group">
+                    <div className="flex items-center gap-2 text-gray-700">
+                        <Cpu size={16} className="text-day-teal" />
+                        <div className="flex flex-col items-start">
+                            <span className="font-bold text-[10px] text-gray-400 uppercase">مدل فعال</span>
+                            <span className="font-bold truncate w-[140px] text-left">{getActiveModelName()}</span>
+                        </div>
+                    </div>
+                    <div className={`bg-white p-1 rounded-md shadow-sm border border-gray-100 transition-transform duration-200 ${isModelMenuOpen ? 'rotate-180' : ''}`}>
+                        <ChevronUp size={12} className="text-gray-400" />
+                    </div>
+                 </button>
+
+                 {/* Dropdown Menu */}
+                 {isModelMenuOpen && (
+                   <div className="absolute bottom-full left-0 w-full mb-2 bg-white rounded-xl shadow-2xl border border-gray-200 py-1 z-50 overflow-hidden max-h-[300px] overflow-y-auto custom-scrollbar animate-fade-in">
+                     {AVAILABLE_MODELS.map((model) => (
+                       <button key={model.id} onClick={() => { onSelectModel(model.id); setIsModelMenuOpen(false); }} className="w-full px-3 py-2 text-right hover:bg-cyan-50 flex flex-col gap-1 border-b border-gray-50 last:border-0 transition-colors">
+                         <div className="flex items-center justify-between w-full">
+                            <span className={`text-xs font-bold ${selectedModel === model.id ? 'text-day-teal' : 'text-gray-700'}`}>{model.name}</span>
+                            {selectedModel === model.id && <Check size={12} className="text-day-teal" />}
+                         </div>
+                         <span className="text-[9px] text-gray-400 line-clamp-1">{model.description}</span>
+                       </button>
+                     ))}
+                   </div>
+                 )}
+            </div>
+
+            {/* Connection Status */}
+            <div className={`mb-3 px-3 py-2 rounded-xl flex items-center justify-between text-xs font-bold border transition-all duration-500 ${isOnline ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
+                <div className="flex items-center gap-2">
+                   <div className={`p-1 rounded-full ${isOnline ? 'bg-green-200 text-green-700' : 'bg-red-200 text-red-600'}`}>
+                       <Wifi size={14} />
+                   </div>
+                   <span>{isOnline ? 'سیستم آنلاین' : 'قطع ارتباط'}</span>
+                </div>
+                <span className="font-mono dir-ltr">{ping ? `${ping}ms` : '--'}</span>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                <div className="flex flex-col">
+                    <span className="text-[10px] text-day-teal font-bold mb-1">طراحی و توسعه توسط Mr.V</span>
+                    <div className="flex gap-3">
+                        <a href="tel:09902076468" className="text-gray-400 hover:text-day-teal transition-colors p-1 hover:bg-gray-100 rounded-md">
+                            <Phone size={16} />
+                        </a>
+                        <a href="https://github.com/MrV006" target="_blank" className="text-gray-400 hover:text-day-dark transition-colors p-1 hover:bg-gray-100 rounded-md">
+                            <Github size={16} />
+                        </a>
+                    </div>
+                </div>
+                <div className="h-8 w-px bg-gray-200 mx-2"></div>
+                <div className="flex flex-col items-end">
+                     <span className="text-[10px] text-gray-400">نسخه</span>
+                     <span className="text-xs font-mono text-gray-500">{appVersion}</span>
+                </div>
+            </div>
         </div>
       </aside>
     </>

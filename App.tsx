@@ -4,10 +4,10 @@ import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import InputArea from './components/InputArea';
 import { generateInsuranceResponse, AVAILABLE_MODELS } from './services/geminiService';
-import { Message, KnowledgeSource, Role, Task, ChatSession, ModelId, UsageStats, VisitorLog } from './types';
-import { Menu, RefreshCw, Key, X, ExternalLink, CheckCircle, BarChart3, Users, MapPin, Wifi, Server, Globe2, Activity, Cpu, Info, Database, ShieldCheck, ListTodo, FileText, Bot } from './components/Icons';
+import { Message, KnowledgeSource, Role, ChatSession, ModelId, UsageStats, VisitorLog } from './types';
+import { Menu, RefreshCw, Key, X, ExternalLink, CheckCircle, BarChart3, Users, MapPin, Wifi, Server, Globe2, Activity, Cpu, Info, Database, ShieldCheck, FileText, Bot } from './components/Icons';
 
-const APP_VERSION = 'v1.2.0 (Beta)';
+const APP_VERSION = 'v1.2.2';
 
 const INITIAL_SOURCES: KnowledgeSource[] = [
   {
@@ -31,7 +31,6 @@ const INITIAL_SOURCES: KnowledgeSource[] = [
 const STORAGE_KEYS = {
   MESSAGES: 'bimeh_day_messages',
   SOURCES: 'bimeh_day_sources',
-  TASKS: 'bimeh_day_tasks',
   HISTORY: 'bimeh_day_chat_history',
   API_KEY: 'bimeh_day_user_api_key',
   MODEL: 'bimeh_day_selected_model',
@@ -60,16 +59,6 @@ const App: React.FC = () => {
     } catch (e) {
       console.error('Failed to parse sources from local storage', e);
       return INITIAL_SOURCES;
-    }
-  });
-
-  const [tasks, setTasks] = useState<Task[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.TASKS);
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      console.error('Failed to parse tasks from local storage', e);
-      return [];
     }
   });
 
@@ -131,10 +120,59 @@ const App: React.FC = () => {
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [helpTab, setHelpTab] = useState<'user' | 'tech'>('user');
 
+  // Connection Status State
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [ping, setPing] = useState<number | null>(null);
+
+  // Connection Check Logic
+  useEffect(() => {
+    const checkConnection = async () => {
+      const start = Date.now();
+      try {
+        // Ping Google Favicon using no-cors mode to check network latency
+        await fetch('https://www.google.com/favicon.ico', { 
+          mode: 'no-cors', 
+          cache: 'no-store',
+        });
+        const end = Date.now();
+        setPing(end - start);
+        setIsOnline(true);
+      } catch (e) {
+        // Fallback check if google fails (e.g. restricted network)
+        if (navigator.onLine) {
+           // If browser says online but fetch failed, might be CORS or Firewall, 
+           // we assume online but high latency or blocked
+           setPing(null);
+           setIsOnline(true); 
+        } else {
+           setIsOnline(false);
+           setPing(null);
+        }
+      }
+    };
+
+    // Initial Check
+    checkConnection();
+    
+    // Periodic Check (every 15 seconds)
+    const interval = setInterval(checkConnection, 15000);
+
+    const handleOnline = () => { setIsOnline(true); checkConnection(); };
+    const handleOffline = () => { setIsOnline(false); setPing(null); };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   // Persist data
   useEffect(() => { try { localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(messages)); } catch(e){} }, [messages]);
   useEffect(() => { try { localStorage.setItem(STORAGE_KEYS.SOURCES, JSON.stringify(sources)); } catch(e){} }, [sources]);
-  useEffect(() => { try { localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks)); } catch(e){} }, [tasks]);
   useEffect(() => { try { localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(chatHistory)); } catch(e){} }, [chatHistory]);
   useEffect(() => { try { localStorage.setItem(STORAGE_KEYS.USAGE, JSON.stringify(usageStats)); } catch(e){} }, [usageStats]);
   
@@ -294,7 +332,6 @@ const App: React.FC = () => {
     if (window.confirm('آیا مطمئن هستید؟ تمامی تنظیمات، تاریخچه و منابع پاک خواهند شد.')) {
       localStorage.removeItem(STORAGE_KEYS.MESSAGES);
       localStorage.removeItem(STORAGE_KEYS.SOURCES);
-      localStorage.removeItem(STORAGE_KEYS.TASKS);
       localStorage.removeItem(STORAGE_KEYS.HISTORY);
       localStorage.removeItem(STORAGE_KEYS.API_KEY);
       localStorage.removeItem(STORAGE_KEYS.MODEL);
@@ -302,7 +339,6 @@ const App: React.FC = () => {
       localStorage.removeItem(STORAGE_KEYS.WELCOME_SEEN);
       setMessages([]);
       setSources(INITIAL_SOURCES);
-      setTasks([]);
       setChatHistory([]);
       setUsageStats({});
       setUserApiKey('');
@@ -528,18 +564,18 @@ const App: React.FC = () => {
       } catch(e) {}
   };
 
+  const handleOpenHelpFromWelcome = () => {
+    handleAcceptWelcome();
+    setShowHelpModal(true);
+    setHelpTab('user');
+  };
+
   // ... Other handlers ...
   const handleToggleBookmark = (id: string) => setMessages(prev => prev.map(msg => msg.id === id ? { ...msg, isBookmarked: !msg.isBookmarked } : msg));
   const handleUpdateBookmarkNote = (id: string, note: string) => setMessages(prev => prev.map(msg => msg.id === id ? { ...msg, bookmarkNote: note } : msg));
   const handleAddSource = (source: KnowledgeSource) => setSources(prev => [source, ...prev]);
   const handleToggleSource = (id: string) => setSources(prev => prev.map(s => s.id === id ? { ...s, isActive: !s.isActive } : s));
   const handleDeleteSource = (id: string) => setSources(prev => prev.filter(s => s.id !== id));
-  const handleAddTask = (task: Task) => setTasks(prev => [task, ...prev]);
-  const handleToggleTask = (id: string) => {
-      setTasks(prev => prev.map(t => t.id === id ? { ...t, isCompleted: !t.isCompleted } : t));
-      triggerUpdateCheck();
-  }
-  const handleDeleteTask = (id: string) => setTasks(prev => prev.filter(t => t.id !== id));
 
   return (
     <div className="flex h-full w-full bg-day-bg relative font-sans overflow-hidden">
@@ -579,12 +615,20 @@ const App: React.FC = () => {
                      </div>
                  </div>
 
-                 <button 
-                    onClick={handleAcceptWelcome}
-                    className="w-full bg-day-dark hover:bg-black text-white py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl"
-                 >
-                    متوجه شدم، ورود به سامانه
-                 </button>
+                 <div className="grid grid-cols-2 gap-3">
+                     <button 
+                        onClick={handleOpenHelpFromWelcome}
+                        className="bg-white border-2 border-day-teal text-day-teal py-4 rounded-xl font-bold transition-all hover:bg-day-teal hover:text-white active:scale-95"
+                     >
+                        مشاهده راهنما
+                     </button>
+                     <button 
+                        onClick={handleAcceptWelcome}
+                        className="bg-day-dark hover:bg-black text-white py-4 rounded-xl font-bold transition-all shadow-lg hover:shadow-xl active:scale-95"
+                     >
+                        متوجه شدم، ورود
+                     </button>
+                 </div>
               </div>
            </div>
         </div>
@@ -651,16 +695,6 @@ const App: React.FC = () => {
                                           </p>
                                       </div>
                                   </div>
-
-                                  <div className="flex gap-3">
-                                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center shrink-0 font-bold text-gray-500">3</div>
-                                      <div>
-                                          <h4 className="font-bold text-gray-800 mb-1">مدیریت وظایف (Tasks)</h4>
-                                          <p className="text-sm text-gray-600 leading-6">
-                                              در تب <b>وظایف</b>، می‌توانید کارهای روزانه (مثل پیگیری خسارت یا تمدید بیمه‌نامه) را ثبت کنید. سیستم به صورت خودکار وضعیت سررسید را نمایش می‌دهد.
-                                          </p>
-                                      </div>
-                                  </div>
                               </div>
                           </div>
                       ) : (
@@ -717,8 +751,8 @@ const App: React.FC = () => {
                        <div>
                           <h3 className="font-bold text-gray-800 text-lg">داشبورد وضعیت سیستم</h3>
                           <p className="text-xs text-gray-500 flex items-center gap-1">
-                             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                             سیستم آنلاین • بروزرسانی خودکار (15s)
+                             <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                             {isOnline ? 'سیستم آنلاین' : 'سیستم آفلاین'} • Ping: {ping ? `${ping}ms` : 'N/A'}
                           </p>
                        </div>
                     </div>
@@ -954,12 +988,19 @@ const App: React.FC = () => {
              <button onClick={toggleSidebar} className="text-gray-600 hover:text-day-teal transition-colors p-2">
                 <Menu size={24} />
              </button>
-             <button 
-                onClick={() => setShowApiKeyModal(true)} 
-                className={`p-2 rounded-lg transition-colors ${userApiKey ? 'text-green-600 bg-green-50' : 'text-gray-400 bg-gray-50'}`}
-             >
-                <Key size={20} />
-             </button>
+             <div className="flex items-center gap-2">
+                <button 
+                    onClick={() => setShowApiKeyModal(true)} 
+                    className={`p-2 rounded-lg transition-colors ${userApiKey ? 'text-green-600 bg-green-50' : 'text-gray-400 bg-gray-50'}`}
+                >
+                    <Key size={20} />
+                </button>
+                {/* Mobile Status Indicator */}
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold ${isOnline ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                    <Wifi size={14} />
+                    {ping && <span>{ping}ms</span>}
+                </div>
+             </div>
         </div>
         <span className="font-black text-lg text-day-teal tracking-tight">بیمه دی</span>
       </div>
@@ -970,7 +1011,6 @@ const App: React.FC = () => {
         isOpen={isSidebarOpen} 
         toggleSidebar={toggleSidebar}
         sources={sources}
-        tasks={tasks}
         chatHistory={chatHistory}
         selectedModel={selectedModel}
         appVersion={APP_VERSION}
@@ -978,9 +1018,6 @@ const App: React.FC = () => {
         onAddSource={handleAddSource}
         onToggleSource={handleToggleSource}
         onDeleteSource={handleDeleteSource}
-        onAddTask={handleAddTask}
-        onToggleTask={handleToggleTask}
-        onDeleteTask={handleDeleteTask}
         onNewChat={handleNewChat}
         onLoadChat={handleLoadChat}
         onDeleteChat={handleDeleteChat}
@@ -989,6 +1026,8 @@ const App: React.FC = () => {
         onOpenSettings={() => setShowApiKeyModal(true)}
         onOpenDashboard={() => setShowDashboard(true)}
         onOpenHelp={() => setShowHelpModal(true)}
+        isOnline={isOnline}
+        ping={ping}
       />
       
       <main className="flex-1 flex flex-col h-full pt-14 md:pt-0 overflow-hidden relative">
