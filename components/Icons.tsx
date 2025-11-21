@@ -62,7 +62,8 @@ import {
   Users,
   Wifi,
   Server,
-  Globe2
+  Globe2,
+  Info
 } from 'lucide-react';
 
 export {
@@ -128,5 +129,6 @@ export {
   Users,
   Wifi,
   Server,
-  Globe2
+  Globe2,
+  Info
 };

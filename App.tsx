@@ -1,10 +1,13 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import InputArea from './components/InputArea';
 import { generateInsuranceResponse, AVAILABLE_MODELS } from './services/geminiService';
 import { Message, KnowledgeSource, Role, Task, ChatSession, ModelId, UsageStats, VisitorLog } from './types';
-import { Menu, RefreshCw, Key, X, ExternalLink, CheckCircle, BarChart3, Users, MapPin, Wifi, Server, Globe2, Activity, Cpu } from './components/Icons';
+import { Menu, RefreshCw, Key, X, ExternalLink, CheckCircle, BarChart3, Users, MapPin, Wifi, Server, Globe2, Activity, Cpu, Info, Database, ShieldCheck, ListTodo, FileText, Bot } from './components/Icons';
+
+const APP_VERSION = 'v1.2.0 (Beta)';
 
 const INITIAL_SOURCES: KnowledgeSource[] = [
   {
@@ -123,6 +126,10 @@ const App: React.FC = () => {
 
   // Welcome Modal State
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  
+  // Help Modal State
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [helpTab, setHelpTab] = useState<'user' | 'tech'>('user');
 
   // Persist data
   useEffect(() => { try { localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(messages)); } catch(e){} }, [messages]);
@@ -583,6 +590,121 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {/* Help & Documentation Modal */}
+      {showHelpModal && (
+          <div className="fixed inset-0 z-[65] bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+              <div className="bg-white w-full max-w-3xl h-[80vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+                  <div className="bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                          <Info className="text-day-teal" />
+                          <h2 className="font-bold text-gray-800">راهنما و مستندات</h2>
+                      </div>
+                      <button onClick={() => setShowHelpModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                          <X size={20} />
+                      </button>
+                  </div>
+                  
+                  {/* Tabs */}
+                  <div className="flex border-b border-gray-200 bg-gray-50 px-4 pt-4 gap-4">
+                      <button 
+                          onClick={() => setHelpTab('user')}
+                          className={`pb-3 text-sm font-bold border-b-2 transition-colors ${helpTab === 'user' ? 'border-day-teal text-day-teal' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                      >
+                          راهنمای کاربر
+                      </button>
+                      <button 
+                          onClick={() => setHelpTab('tech')}
+                          className={`pb-3 text-sm font-bold border-b-2 transition-colors ${helpTab === 'tech' ? 'border-day-accent text-day-accent' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                      >
+                          مستندات فنی (Developers)
+                      </button>
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-gray-50/30">
+                      {helpTab === 'user' ? (
+                          <div className="space-y-6 text-right">
+                              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                  <h3 className="font-bold text-blue-800 mb-2 flex items-center gap-2"><Bot size={18}/> درباره دستیار</h3>
+                                  <p className="text-sm text-blue-700 leading-7">
+                                      این سامانه یک دستیار هوشمند تحلیلگر است که به شما کمک می‌کند سوالات پیچیده بیمه‌ای را با استناد به اسناد و بخشنامه‌ها پاسخ دهید.
+                                  </p>
+                              </div>
+
+                              <div className="space-y-4">
+                                  <div className="flex gap-3">
+                                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center shrink-0 font-bold text-gray-500">1</div>
+                                      <div>
+                                          <h4 className="font-bold text-gray-800 mb-1">افزودن منابع (Sources)</h4>
+                                          <p className="text-sm text-gray-600 leading-6">
+                                              در تب <b>منابع</b>، می‌توانید فایل‌های PDF، Word یا لینک وبسایت را وارد کنید. هوش مصنوعی پاسخ‌های خود را <span className="text-day-teal font-bold">فقط بر اساس این اسناد</span> تولید می‌کند.
+                                          </p>
+                                      </div>
+                                  </div>
+                                  
+                                  <div className="flex gap-3">
+                                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center shrink-0 font-bold text-gray-500">2</div>
+                                      <div>
+                                          <h4 className="font-bold text-gray-800 mb-1">فعال/غیرفعال کردن اسناد</h4>
+                                          <p className="text-sm text-gray-600 leading-6">
+                                              با استفاده از دکمه "وضعیت" روی هر سند، می‌توانید آن را موقتاً از پردازش خارج کنید. اسناد جدید به صورت خودکار فعال می‌شوند.
+                                          </p>
+                                      </div>
+                                  </div>
+
+                                  <div className="flex gap-3">
+                                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center shrink-0 font-bold text-gray-500">3</div>
+                                      <div>
+                                          <h4 className="font-bold text-gray-800 mb-1">مدیریت وظایف (Tasks)</h4>
+                                          <p className="text-sm text-gray-600 leading-6">
+                                              در تب <b>وظایف</b>، می‌توانید کارهای روزانه (مثل پیگیری خسارت یا تمدید بیمه‌نامه) را ثبت کنید. سیستم به صورت خودکار وضعیت سررسید را نمایش می‌دهد.
+                                          </p>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                      ) : (
+                          <div className="space-y-6 text-left dir-ltr">
+                              <div className="bg-gray-900 text-gray-300 p-4 rounded-xl font-mono text-xs overflow-x-auto">
+                                  <p className="mb-2 text-green-400">// Project Architecture: Client-Side RAG</p>
+                                  <p>Frontend: React 18 + TypeScript + Vite</p>
+                                  <p>Styling: Tailwind CSS (JIT)</p>
+                                  <p>AI Model: Google Gemini 2.0 Flash / 1.5 Pro</p>
+                                  <p>Storage: LocalStorage (Obfuscated)</p>
+                              </div>
+
+                              <div>
+                                  <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2"><Database size={16}/> Retrieval-Augmented Generation (RAG)</h3>
+                                  <p className="text-sm text-gray-600 leading-6 text-justify">
+                                      This application implements a client-side RAG pattern. Documents (PDF/Docx) are parsed in the browser using `pdfjs-dist` and `mammoth`. The extracted text is injected into the LLM's context window dynamically based on user selection (`activeSources`).
+                                  </p>
+                              </div>
+
+                              <div>
+                                  <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2"><ShieldCheck size={16}/> Security & Key Management</h3>
+                                  <p className="text-sm text-gray-600 leading-6 text-justify">
+                                      User API keys are never sent to any backend server. They are stored in the browser's `localStorage` using a reversible obfuscation technique to prevent plain-text scraping. The application uses a randomized load-balancing strategy with fallback keys to ensure high availability.
+                                  </p>
+                              </div>
+
+                              <div>
+                                  <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2"><Globe2 size={16}/> Web Scraping Proxy</h3>
+                                  <p className="text-sm text-gray-600 leading-6 text-justify">
+                                      Due to CORS policies, website fetching relies on the `allorigins` proxy API. The HTML is sanitized (removing scripts/styles) before being added to the knowledge base.
+                                  </p>
+                              </div>
+                          </div>
+                      )}
+                  </div>
+                  
+                  <div className="p-4 bg-white border-t border-gray-200 flex justify-between items-center">
+                       <span className="text-xs text-gray-400 font-mono">{APP_VERSION}</span>
+                       <button onClick={() => setShowHelpModal(false)} className="px-4 py-2 bg-day-teal text-white rounded-lg text-sm font-bold">بستن</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
       {/* System Dashboard Modal */}
       {showDashboard && (
          <div className="fixed inset-0 z-[60] bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
@@ -851,6 +973,7 @@ const App: React.FC = () => {
         tasks={tasks}
         chatHistory={chatHistory}
         selectedModel={selectedModel}
+        appVersion={APP_VERSION}
         onSelectModel={setSelectedModel}
         onAddSource={handleAddSource}
         onToggleSource={handleToggleSource}
@@ -865,6 +988,7 @@ const App: React.FC = () => {
         onClearCache={handleClearCache}
         onOpenSettings={() => setShowApiKeyModal(true)}
         onOpenDashboard={() => setShowDashboard(true)}
+        onOpenHelp={() => setShowHelpModal(true)}
       />
       
       <main className="flex-1 flex flex-col h-full pt-14 md:pt-0 overflow-hidden relative">

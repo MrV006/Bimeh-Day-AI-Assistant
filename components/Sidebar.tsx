@@ -2,7 +2,7 @@
 import React, { useState, DragEvent, useRef, useMemo } from 'react';
 import { KnowledgeSource, Task, ChatSession, ModelId } from '../types';
 import { AVAILABLE_MODELS } from '../services/geminiService';
-import { Plus, FileText, Trash2, CheckCircle, Database, XCircle, ShieldCheck, UploadCloud, Loader, MessageSquarePlus, X, Search, ListTodo, Calendar, Clock, Square, CheckSquare, ArrowUpDown, History, ArchiveRestore, Eraser, MessageSquare, Globe, Link, Github, Phone, Key, Cpu, Check, ChevronDown, Zap, Brain, Activity, FlaskConical, Sparkles, BarChart3 } from './Icons';
+import { Plus, FileText, Trash2, CheckCircle, Database, XCircle, ShieldCheck, UploadCloud, Loader, MessageSquarePlus, X, Search, ListTodo, Calendar, Clock, Square, CheckSquare, ArrowUpDown, History, ArchiveRestore, Eraser, MessageSquare, Globe, Link, Github, Phone, Key, Cpu, Check, ChevronDown, Zap, Brain, Activity, FlaskConical, Sparkles, BarChart3, Info } from './Icons';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
@@ -16,6 +16,7 @@ interface SidebarProps {
   tasks: Task[];
   chatHistory: ChatSession[];
   selectedModel: ModelId;
+  appVersion: string;
   onSelectModel: (model: ModelId) => void;
   onAddSource: (source: KnowledgeSource) => void;
   onToggleSource: (id: string) => void;
@@ -30,6 +31,7 @@ interface SidebarProps {
   onClearCache: () => void;
   onOpenSettings: () => void;
   onOpenDashboard: () => void;
+  onOpenHelp: () => void;
 }
 
 type Tab = 'sources' | 'tasks' | 'history';
@@ -43,6 +45,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   tasks,
   chatHistory,
   selectedModel,
+  appVersion,
   onSelectModel,
   onAddSource,
   onToggleSource,
@@ -56,7 +59,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onClearHistory,
   onClearCache,
   onOpenSettings,
-  onOpenDashboard
+  onOpenDashboard,
+  onOpenHelp
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('sources');
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
@@ -356,6 +360,15 @@ const Sidebar: React.FC<SidebarProps> = ({
               >
                 <BarChart3 size={20} />
               </button>
+              
+               {/* Help/Info Button */}
+               <button 
+                onClick={onOpenHelp} 
+                className="p-1.5 hover:bg-white/20 rounded-lg transition-colors text-white"
+                title="راهنما و درباره"
+              >
+                <Info size={20} />
+              </button>
 
               {/* API Settings Button */}
               <button 
@@ -421,7 +434,6 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* ... (Rest of the component remains largely same, just updated imports/icons) ... */}
         {/* New Chat Button */}
         <div className="p-4 pb-2">
           <button 
@@ -466,9 +478,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         {/* ... Tab Contents ... */}
         {/* === SOURCES TAB === */}
         {activeTab === 'sources' && (
-            /* ... Existing Source Logic ... */
             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-              {/* Search and List Logic copied from previous but using updated imports */}
+              {/* Search */}
               {sources.length > 0 && (
               <div className="px-4 mt-4">
                 <div className="relative group">
@@ -521,7 +532,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               </div>
 
-              {/* ... Empty States ... */}
               {sources.length === 0 && !isAdding && (
                 <div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-100 rounded-xl bg-gray-50/50">
                   <p className="text-sm font-medium">هنوز سندی اضافه نشده است</p>
@@ -544,22 +554,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                     >
                       <div className="flex items-start justify-between gap-2">
                          {/* Icon and Title */}
-                        <div className="flex items-start gap-2 overflow-hidden flex-1">
-                          <div className={`p-1.5 rounded-lg mt-0.5 ${source.isActive ? 'bg-white text-day-teal' : 'bg-gray-200 text-gray-500'}`}>
-                            {source.type === 'link' ? <Globe size={16} className="shrink-0" /> : <FileText size={16} className="shrink-0" />}
+                        <div className="flex items-start gap-2 overflow-hidden flex-1 min-w-0">
+                          <div className={`p-1.5 rounded-lg mt-0.5 shrink-0 ${source.isActive ? 'bg-white text-day-teal' : 'bg-gray-200 text-gray-500'}`}>
+                            {source.type === 'link' ? <Globe size={16} /> : <FileText size={16} />}
                           </div>
-                          <div className="flex flex-col min-w-0">
-                              <span className={`text-sm font-bold break-words ${source.isActive ? 'text-day-dark' : 'text-gray-600'}`}>
+                          <div className="flex flex-col min-w-0 flex-1">
+                              <span className={`text-sm font-bold break-words leading-tight ${source.isActive ? 'text-day-dark' : 'text-gray-600'}`}>
                                 {highlightText(source.title, searchQuery)}
                               </span>
-                              
-                              {/* Active Indicator - Text Based */}
-                              {source.isActive && (
-                                <span className="text-[10px] text-green-600 font-medium mt-0.5 flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                                    فعال در پاسخ‌دهی
-                                </span>
-                              )}
                           </div>
                         </div>
 
@@ -581,7 +583,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                       
                       {/* Footer Actions */}
-                      <div className="flex items-center justify-between mt-3 border-t border-black/5 pt-2">
+                      <div className="flex items-center justify-between mt-3 border-t border-black/5 pt-2 flex-wrap gap-2">
                             {/* Read More */}
                             {shouldTruncate ? (
                               <button 
@@ -592,17 +594,18 @@ const Sidebar: React.FC<SidebarProps> = ({
                               </button>
                             ) : <span />}
                             
-                            {/* Clearly Visible Toggle Switch */}
+                            {/* CLEAR Visual Toggle Switch */}
                             <button 
                               onClick={() => onToggleSource(source.id)}
-                              className={`flex items-center gap-2 px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${
-                                  source.isActive 
-                                    ? 'bg-green-100 text-green-700 hover:bg-green-200' 
-                                    : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
-                                }`}
+                              className="flex items-center gap-2 group cursor-pointer ml-auto"
+                              title={source.isActive ? "کلیک برای غیرفعال کردن" : "کلیک برای فعال کردن"}
                             >
-                              <div className={`w-3 h-3 rounded-full transition-colors ${source.isActive ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                              <span>{source.isActive ? 'وضعیت: فعال' : 'وضعیت: غیرفعال'}</span>
+                              <span className={`text-[10px] font-bold ${source.isActive ? 'text-green-600' : 'text-gray-400'}`}>
+                                {source.isActive ? 'وضعیت: فعال' : 'وضعیت: غیرفعال'}
+                              </span>
+                              <div className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-300 flex items-center ${source.isActive ? 'bg-green-500' : 'bg-gray-300'}`}>
+                                  <div className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-300 ${source.isActive ? '-translate-x-4' : 'translate-x-0'}`}></div>
+                              </div>
                             </button>
                         </div>
                     </div>
@@ -663,8 +666,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {/* === TASKS TAB === */}
         {activeTab === 'tasks' && (
-             /* ... Existing Task Logic ... */
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                    <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2 tracking-wider"><ListTodo size={14} /> لیست وظایف</h2>
                         <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium border border-gray-200">{tasks.filter(t => !t.isCompleted).length} فعال</span>
@@ -699,7 +701,6 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {/* === HISTORY TAB === */}
         {activeTab === 'history' && (
-             /* ... Existing History Logic ... */
             <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                    <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2 tracking-wider"><History size={14} /> آرشیو گفتگوها</h2>
@@ -723,7 +724,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         {/* Footer */}
         <div className="p-4 border-t border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-500 mt-auto">
             <p className="text-[10px] font-medium mb-2 tracking-wide">طراحی و توسعه توسط <span className="text-day-teal font-bold">Mr.V</span></p>
-            <div className="flex items-center gap-4"><a href="https://github.com/MrV006" target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors"><Github size={16} /></a><a href="tel:09902076468" className="hover:text-green-600 transition-colors"><Phone size={16} /></a></div>
+            <div className="flex items-center gap-4 mb-2"><a href="https://github.com/MrV006" target="_blank" rel="noopener noreferrer" className="hover:text-black transition-colors"><Github size={16} /></a><a href="tel:09902076468" className="hover:text-green-600 transition-colors"><Phone size={16} /></a></div>
+            <span className="text-[9px] opacity-50 font-mono">{appVersion}</span>
         </div>
       </aside>
     </>
