@@ -69,9 +69,9 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
 ];
 
 // Obfuscated Fallback Keys (Reversed)
+// The first key is the PRIMARY DEFAULT requested by user.
 const FALLBACK_KEYS = [
-  '0AaFOLV0plmRoWXT5fqGCQGpoeXK9t5CySazIA', // Key from text (...FaA0)
-  '0aAFOLV0plmRoWXT5fqGCQGpoeXK9t5CySazIA', // Key from screenshot (...FAa0)
+  '0AaFOLV0plmRoWXT5fqGCQGpoeXK9t5CySazIA', // PRIMARY KEY (...FaA0)
   '86cuuVd9uoDB8eFwwxp9H0-utc72yXOyCySazIA',
   '8otDxZYwqHTnsRV2V-irDlqFXa9yNiY9ySazIA',
   '0aFOkV0plmRoWXT5fqGCQpoeXKr9t5CySazIA',
@@ -181,9 +181,8 @@ export const generateInsuranceResponse = async (
     // STRICT MODE: Only use the provided key
     keysToTry = [userApiKey!.trim()];
   } else {
-    // Shuffle fallback keys
-    const shuffledKeys = [...FALLBACK_KEYS].sort(() => Math.random() - 0.5);
-    keysToTry = shuffledKeys.map(k => reverseString(k));
+    // Use system keys in defined order (No shuffling, to prioritize the main key)
+    keysToTry = FALLBACK_KEYS.map(k => reverseString(k));
   }
 
   try {
