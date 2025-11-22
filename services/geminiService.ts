@@ -68,14 +68,13 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   }
 ];
 
-// Obfuscated Fallback Keys (Reversed)
+// Fallback Keys (Plain Text)
 // The first key is the PRIMARY DEFAULT requested by user.
 const FALLBACK_KEYS = [
-  '0AaFOLV0plmRoWXT5fqGCQGpoeXK9t5CySazIA', // PRIMARY KEY (...FaA0)
-  '86cuuVd9uoDB8eFwwxp9H0-utc72yXOyCySazIA',
-  '8otDxZYwqHTnsRV2V-irDlqFXa9yNiY9ySazIA',
-  '0aFOkV0plmRoWXT5fqGCQpoeXKr9t5CySazIA',
-  'Q_b3BCA36ddQSMp77Wkg11ksDUMxUn-nCySazIA'
+  'AIzaSyC5t9rKXeopGCQGqf5TxWoRmlp0VLOFaA0', // PRIMARY KEY
+  'AIzaSyCOXy27ctu-0H9pxwwFe8BDou9dVuuc68',
+  'AIzaSyYiNy9aXFqldri-V2VRsnTHqwYZxDto8',
+  'AIzaSyCn-UxMUDsk11gkW77QMpSQdd63ACB3b_Q'
 ];
 
 const getClient = (apiKey: string) => {
@@ -87,8 +86,6 @@ const getClient = (apiKey: string) => {
   }
   return new GoogleGenAI({ apiKey });
 };
-
-const reverseString = (str: string) => str.split('').reverse().join('');
 
 const tryGenerateWithModel = async (
   modelId: string,
@@ -181,8 +178,8 @@ export const generateInsuranceResponse = async (
     // STRICT MODE: Only use the provided key
     keysToTry = [userApiKey!.trim()];
   } else {
-    // Use system keys in defined order (No shuffling, to prioritize the main key)
-    keysToTry = FALLBACK_KEYS.map(k => reverseString(k));
+    // Use system keys in defined order
+    keysToTry = FALLBACK_KEYS;
   }
 
   try {

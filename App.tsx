@@ -7,7 +7,7 @@ import { generateInsuranceResponse, AVAILABLE_MODELS } from './services/geminiSe
 import { Message, KnowledgeSource, Role, ChatSession, ModelId, UsageStats, VisitorLog } from './types';
 import { Menu, RefreshCw, Key, X, ExternalLink, CheckCircle, BarChart3, Users, MapPin, Wifi, Server, Globe2, Activity, Cpu, Info, Database, ShieldCheck, FileText, Bot, XCircle } from './components/Icons';
 
-const APP_VERSION = 'v1.2.3';
+const APP_VERSION = 'v1.2.4';
 
 const INITIAL_SOURCES: KnowledgeSource[] = [
   {
@@ -37,9 +37,6 @@ const STORAGE_KEYS = {
   USAGE: 'bimeh_day_usage_stats',
   WELCOME_SEEN: 'bimeh_day_welcome_seen'
 };
-
-// Helper function to reverse string for simple obfuscation
-const reverseString = (str: string) => str.split('').reverse().join('');
 
 const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>(() => {
@@ -85,11 +82,7 @@ const App: React.FC = () => {
   // User API Key State
   const [userApiKey, setUserApiKey] = useState<string>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.API_KEY);
-    if (!saved) return '';
-    if (saved.trim().startsWith('AIza')) {
-      return saved.trim();
-    }
-    return reverseString(saved);
+    return saved || '';
   });
 
   // Model State
@@ -186,7 +179,7 @@ const App: React.FC = () => {
   useEffect(() => {
     try {
         if (userApiKey) {
-        localStorage.setItem(STORAGE_KEYS.API_KEY, reverseString(userApiKey));
+        localStorage.setItem(STORAGE_KEYS.API_KEY, userApiKey);
         } else {
         localStorage.removeItem(STORAGE_KEYS.API_KEY);
         }
@@ -728,7 +721,7 @@ const App: React.FC = () => {
                                   <p>Frontend: React 18 + TypeScript + Vite</p>
                                   <p>Styling: Tailwind CSS (JIT)</p>
                                   <p>AI Model: Google Gemini 2.0 Flash / 1.5 Pro</p>
-                                  <p>Storage: LocalStorage (Obfuscated)</p>
+                                  <p>Storage: LocalStorage</p>
                               </div>
 
                               <div>
@@ -741,7 +734,7 @@ const App: React.FC = () => {
                               <div>
                                   <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2"><ShieldCheck size={16}/> Security & Key Management</h3>
                                   <p className="text-sm text-gray-600 leading-6 text-justify">
-                                      User API keys are never sent to any backend server. They are stored in the browser's `localStorage` using a reversible obfuscation technique to prevent plain-text scraping. The application uses a randomized load-balancing strategy with fallback keys to ensure high availability.
+                                      User API keys are never sent to any backend server. They are stored in the browser's `localStorage` on the client side. The application uses a randomized load-balancing strategy with fallback keys to ensure high availability.
                                   </p>
                               </div>
 
