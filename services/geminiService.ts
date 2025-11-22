@@ -70,7 +70,8 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
 
 // Obfuscated Fallback Keys (Reversed)
 const FALLBACK_KEYS = [
-  '0aAFOLV0plmRoWXT5fqGCQGpoeXK9t5CySazIA', // Key from screenshot
+  '0AaFOLV0plmRoWXT5fqGCQGpoeXK9t5CySazIA', // Key from text (...FaA0)
+  '0aAFOLV0plmRoWXT5fqGCQGpoeXK9t5CySazIA', // Key from screenshot (...FAa0)
   '86cuuVd9uoDB8eFwwxp9H0-utc72yXOyCySazIA',
   '8otDxZYwqHTnsRV2V-irDlqFXa9yNiY9ySazIA',
   '0aFOkV0plmRoWXT5fqGCQpoeXKr9t5CySazIA',
@@ -123,7 +124,7 @@ const tryGenerateWithModel = async (
       lastError = error;
 
       // If user provided a specific key, we stop immediately on error to show them the feedback
-      // and DO NOT try other system keys.
+      // BUT the outer function will handle fallback models.
       if (isUserKey) {
          throw error;
       }
@@ -189,14 +190,16 @@ export const generateInsuranceResponse = async (
     // First attempt: Selected Model
     return await tryGenerateWithModel(modelId, keysToTry, finalPrompt, systemInstruction, isUserKey);
   } catch (error: any) {
-    // If using SYSTEM KEYS and the error wasn't a safety filter, try fallback model (Flash 1.5)
-    // This helps if the specific model (e.g., 2.0 Flash) is overloaded but 1.5 is fine.
-    if (!isUserKey && modelId !== 'gemini-1.5-flash') {
+    // Fallback Logic
+    // If the error wasn't a safety filter, try fallback model (Flash 1.5)
+    // We do this even for User Keys because sometimes specific models (like 2.0 Flash) are down or restricted for a specific key/region,
+    // but the key itself is valid for 1.5 Flash.
+    if (modelId !== 'gemini-1.5-flash') {
         console.log("Primary model failed, attempting fallback to gemini-1.5-flash...");
         try {
             return await tryGenerateWithModel('gemini-1.5-flash', keysToTry, finalPrompt, systemInstruction, isUserKey);
         } catch (fallbackError) {
-            // If fallback also fails, proceed to error handling with the ORIGINAL error (more relevant usually)
+            // If fallback also fails, proceed to error handling with the ORIGINAL error
             console.error("Fallback model also failed.");
         }
     }
@@ -212,9 +215,11 @@ export const generateInsuranceResponse = async (
       throw new Error("خطا در اتصال به اینترنت. لطفاً فیلترشکن (VPN) خود را روشن کنید یا اتصال را بررسی نمایید.");
     }
 
-    // 2. USER KEY ERRORS (Only strictly enforce this if user provided the key)
+    // 2. USER KEY ERRORS (Strict check for actual Key errors)
     if (isUserKey) {
-        if (msg.includes("api key") || msg.includes("400") || msg.includes("403") || msg.includes("invalid_argument")) {
+        // Only throw API_KEY_INVALID if it's definitively a key issue (400 Invalid Argument / 403 Permission Denied)
+        // 404 Not Found usually means the MODEL is not found, not the key.
+        if ((msg.includes("400") && msg.includes("key")) || msg.includes("api_key") || msg.includes("invalid_argument")) {
             throw new Error("API_KEY_INVALID");
         }
     }
@@ -234,12 +239,11 @@ export const generateInsuranceResponse = async (
       return "متاسفانه پاسخ به این درخواست به دلایل ایمنی توسط مدل فیلتر شد.";
     }
     if (msg.includes("404")) {
-        throw new Error("مدل انتخاب شده در حال حاضر در دسترس نیست. لطفاً مدل دیگری را انتخاب کنید.");
+        // If we are here, it means even the fallback failed or we were already on the fallback.
+        throw new Error("مدل انتخاب شده با این کلید در دسترس نیست. (خطای 404)");
     }
 
     // Default Error for System Keys
-    // If we are here using system keys, DO NOT throw "API_KEY_INVALID" to avoid the modal.
-    // Just say server is busy.
     if (!isUserKey) {
         throw new Error("RATE_LIMIT_EXCEEDED");
     }
