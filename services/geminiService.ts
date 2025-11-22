@@ -1,22 +1,22 @@
 
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { KnowledgeSource, Role, Message, ModelId, ModelConfig } from '../types';
 
-// Define Available Models and their Free Tier Limits based on Google AI Studio
 export const AVAILABLE_MODELS: ModelConfig[] = [
   {
     id: 'gemini-2.0-flash',
     name: 'Gemini 2.0 Flash',
-    description: 'تعادل عالی بین سرعت و هوش (پیشنهادی)',
+    description: 'سریع‌ترین و جدیدترین مدل گوگل (پیشنهادی)',
     rpm: 15,
     rpd: 1500,
     tpm: '1M',
-    isNew: true
+    isNew: true,
+    isStable: true
   },
   {
     id: 'gemini-2.0-flash-lite-preview-02-05',
     name: 'Gemini 2.0 Flash Lite',
-    description: 'سریع‌ترین و ارزان‌ترین (مناسب سرعت بالا)',
+    description: 'نسخه سبک و فوق‌سریع',
     rpm: 30,
     rpd: 1500,
     tpm: '1M',
@@ -25,225 +25,125 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   {
     id: 'gemini-1.5-flash',
     name: 'Gemini 1.5 Flash',
-    description: 'نسخه پایدار و استاندارد گوگل',
+    description: 'پایدار و مقرون به صرفه',
     rpm: 15,
     rpd: 1500,
     tpm: '1M',
     isStable: true
   },
   {
-    id: 'gemini-1.5-flash-8b',
-    name: 'Gemini 1.5 Flash-8B',
-    description: 'نسخه بسیار سریع و کم‌حجم',
-    rpm: 15,
-    rpd: 1500,
-    tpm: '1M'
-  },
-  {
     id: 'gemini-1.5-pro',
     name: 'Gemini 1.5 Pro',
-    description: 'هوشمندترین مدل (تحلیل‌های پیچیده)',
+    description: 'هوشمندترین مدل (کندتر)',
     rpm: 2,
     rpd: 50,
     tpm: '32K',
     isPro: true
-  },
-  {
-    id: 'gemini-2.0-pro-exp-02-05',
-    name: 'Gemini 2.0 Pro (Exp)',
-    description: 'نسخه آزمایشی هوشمند نسل ۲',
-    rpm: 2,
-    rpd: 50,
-    tpm: '32K',
-    isExperimental: true
-  },
-  {
-    id: 'gemini-2.0-flash-thinking-exp-01-21',
-    name: 'Gemini 2.0 Thinking',
-    description: 'مدل با قابلیت تفکر و استدلال',
-    rpm: 10,
-    rpd: 1500,
-    tpm: '1M',
-    isExperimental: true
   }
 ];
 
-// Fallback Keys (Plain Text)
-// The first key is the PRIMARY DEFAULT requested by user.
+// Hardcoded keys in plain text.
+// The specific key requested by the user is placed FIRST to be the default.
 const FALLBACK_KEYS = [
-  'AIzaSyC5t9rKXeopGCQGqf5TxWoRmlp0VLOFaA0', // PRIMARY KEY
-  'AIzaSyCOXy27ctu-0H9pxwwFe8BDou9dVuuc68',
-  'AIzaSyYiNy9aXFqldri-V2VRsnTHqwYZxDto8',
-  'AIzaSyCn-UxMUDsk11gkW77QMpSQdd63ACB3b_Q'
+    'AIzaSyC5t9rKXeopGCQGqf5TxWoRmlp0VLOFaA0',
+    'AIzaSyC5t9rKXeopGCQGqf5TxWoRmlp0VLOFAa0' // Variation for robustness
 ];
-
-const getClient = (apiKey: string) => {
-  if (apiKey) {
-    apiKey = apiKey.trim();
-  }
-  if (!apiKey) {
-    throw new Error("کلید API نامعتبر است.");
-  }
-  return new GoogleGenAI({ apiKey });
-};
-
-const tryGenerateWithModel = async (
-  modelId: string,
-  keysToTry: string[],
-  finalPrompt: string,
-  systemInstruction: string,
-  isUserKey: boolean
-): Promise<string> => {
-  let lastError: any = null;
-
-  // Loop through keys
-  for (const apiKey of keysToTry) {
-    try {
-      const ai = getClient(apiKey);
-      const chat = ai.chats.create({
-        model: modelId,
-        config: {
-          systemInstruction: systemInstruction,
-          temperature: 0.3,
-        }
-      });
-
-      const response: GenerateContentResponse = await chat.sendMessage({
-        message: finalPrompt
-      });
-
-      const text = response.text;
-      if (text) return text;
-      
-    } catch (error: any) {
-      const keySuffix = apiKey ? apiKey.slice(-4) : '****';
-      console.warn(`Attempt failed with key ending in ...${keySuffix} for model ${modelId}`, error.message);
-      lastError = error;
-
-      // If user provided a specific key, we stop immediately on error to show them the feedback
-      // BUT the outer function will handle fallback models.
-      if (isUserKey) {
-         throw error;
-      }
-      
-      // If using system keys, we continue to the next key in the loop
-      continue;
-    }
-  }
-  
-  throw lastError;
-};
 
 export const generateInsuranceResponse = async (
   history: Message[],
-  currentQuery: string,
-  knowledgeBase: KnowledgeSource[],
-  userApiKey?: string,
-  modelId: string = 'gemini-2.0-flash'
+  currentMessage: string,
+  sources: KnowledgeSource[],
+  userApiKey: string | null,
+  modelId: ModelId
 ): Promise<string> => {
   
-  const activeSources = knowledgeBase.filter(k => k.isActive);
-  const activeContext = activeSources
-    .map(k => `Source Title: ${k.title}\nContent:\n${k.content}`)
-    .join('\n\n----------------\n\n');
+  // 1. Construct Context from Knowledge Base (RAG)
+  const activeSources = sources.filter(s => s.isActive);
+  let contextText = "";
+  if (activeSources.length > 0) {
+      contextText = "CONTEXT FROM KNOWLEDGE BASE (Use this to answer):\n" + 
+                    activeSources.map(s => `--- ${s.title} ---\n${s.content}\n`).join("\n");
+  }
 
   const systemInstruction = `
-    شما دستیار هوشمند و حرفه‌ای شرکت "بیمه دی" (Day Insurance) هستید.
-    وظیفه شما پاسخگویی به سوالات کاربران درباره انواع بیمه (عمر، ثالث، بدنه، درمان و ...) است.
-    
-    دستورالعمل‌ها:
-    1. همیشه با احترام و لحنی رسمی اما دوستانه صحبت کنید.
-    2. پاسخ‌های خود را صرفاً بر اساس "منابع موجود" که در ادامه ارائه می‌شود بدهید.
-    3. اگر جواب سوالی در منابع نبود، صادقانه بگویید که در اسناد فعال (${activeSources.length} سند فعال) اطلاعاتی در این مورد یافت نشد، اما به عنوان یک هوش مصنوعی عمومی سعی می‌کنید راهنمایی کنید (و ذکر کنید که این نظر عمومی است).
-    4. فرمت پاسخ‌ها باید خوانا، دارای بولت پوینت و ساختار مناسب باشد.
-    5. زبان پاسخگویی فارسی است.
-    
-    منابع و کتابخانه اطلاعاتی بارگذاری شده (Active Context):
-    ${activeContext ? activeContext : "هیچ سند فعالی برای این گفتگو انتخاب نشده است. از دانش عمومی خود استفاده کنید."}
+You are an expert insurance assistant for "Day Insurance" (Bimeh Day).
+Your goal is to answer questions accurately based ONLY on the provided context if available.
+If the answer is not in the context, use your general knowledge but mention that it might not be in the specific documents provided.
+Always answer in Persian (Farsi).
+Format your response using Markdown (bold, lists, etc.) for readability.
+Be polite, professional, and concise.
+Current Date: ${new Date().toLocaleDateString('fa-IR')}
   `;
 
-  const recentHistory = history.slice(-10);
-  let promptHistory = "";
-  if (recentHistory.length > 0) {
-    promptHistory = "تاریخچه مکالمه اخیر:\n" + recentHistory.map(m => `${m.role === Role.USER ? 'کاربر' : 'دستیار'}: ${m.text}`).join('\n') + "\n\n";
+  // 2. Prepare Contents for API
+  // We map internal Message type to the API's expected format.
+  const contents = [];
+  
+  for (const msg of history) {
+      contents.push({
+          role: msg.role === Role.USER ? 'user' : 'model',
+          parts: [{ text: msg.text }]
+      });
   }
 
-  const finalPrompt = `${promptHistory}سوال کاربر: ${currentQuery}`;
+  // Append the current user prompt with RAG context
+  const finalPrompt = contextText 
+    ? `${currentMessage}\n\n${contextText}` 
+    : currentMessage;
 
-  // Determine keys
-  let keysToTry: string[] = [];
-  const isUserKey = !!(userApiKey && userApiKey.trim() !== "");
+  contents.push({
+      role: 'user',
+      parts: [{ text: finalPrompt }]
+  });
 
-  if (isUserKey) {
-    // STRICT MODE: Only use the provided key
-    keysToTry = [userApiKey!.trim()];
-  } else {
-    // Use system keys in defined order
-    keysToTry = FALLBACK_KEYS;
+  // 3. Determine Keys to Try
+  // If user provided a key, try ONLY that key first. If not, use fallback list.
+  let keysToTry = userApiKey ? [userApiKey] : FALLBACK_KEYS;
+  
+  let lastError: any = null;
+
+  // 4. Iterate through keys (Round Robin / Failover)
+  for (const apiKey of keysToTry) {
+      try {
+          const ai = new GoogleGenAI({ apiKey });
+          
+          const response = await ai.models.generateContent({
+              model: modelId,
+              contents: contents,
+              config: {
+                  systemInstruction: systemInstruction,
+                  temperature: 0.4,
+                  maxOutputTokens: 1500,
+              }
+          });
+
+          if (response.text) {
+              return response.text;
+          }
+          
+      } catch (error: any) {
+          console.warn(`API Call Failed with key ending in ...${apiKey.slice(-4)}`, error.message);
+          lastError = error;
+          
+          // If it's a 403 (Permission/Invalid Key) or 429 (Quota), we might want to try the next key in the fallback list.
+          // However, if the User provided the key, we shouldn't switch to system keys silently, 
+          // but the outer loop logic above handles "user key only" vs "fallback list".
+      }
   }
 
-  try {
-    // First attempt: Selected Model
-    return await tryGenerateWithModel(modelId, keysToTry, finalPrompt, systemInstruction, isUserKey);
-  } catch (error: any) {
-    // Fallback Logic
-    // If the error wasn't a safety filter, try fallback model (Flash 1.5)
-    // We do this even for User Keys because sometimes specific models (like 2.0 Flash) are down or restricted for a specific key/region,
-    // but the key itself is valid for 1.5 Flash.
-    if (modelId !== 'gemini-1.5-flash') {
-        console.log("Primary model failed, attempting fallback to gemini-1.5-flash...");
-        try {
-            return await tryGenerateWithModel('gemini-1.5-flash', keysToTry, finalPrompt, systemInstruction, isUserKey);
-        } catch (fallbackError) {
-            // If fallback also fails, proceed to error handling with the ORIGINAL error
-            console.error("Fallback model also failed.");
-        }
-    }
-
-    // Error Parsing Logic
-    const msg = (error?.message || "").toLowerCase();
-    const errorName = (error?.name || "").toLowerCase();
-
-    console.error("Final API Error:", msg);
-
-    // 1. NETWORK ERRORS
-    if (msg.includes("fetch failed") || msg.includes("network") || msg.includes("failed to fetch") || errorName === "typeerror") {
-      throw new Error("خطا در اتصال به اینترنت. لطفاً فیلترشکن (VPN) خود را روشن کنید یا اتصال را بررسی نمایید.");
-    }
-
-    // 2. USER KEY ERRORS (Strict check for actual Key errors)
-    if (isUserKey) {
-        // Only throw API_KEY_INVALID if it's definitively a key issue (400 Invalid Argument / 403 Permission Denied)
-        // 404 Not Found usually means the MODEL is not found, not the key.
-        if ((msg.includes("400") && msg.includes("key")) || msg.includes("api_key") || msg.includes("invalid_argument")) {
-            throw new Error("API_KEY_INVALID");
-        }
-    }
-
-    // 3. QUOTA / RATE LIMITS
-    if (msg.includes("429") || msg.includes("quota") || msg.includes("exhausted") || msg.includes("too many requests")) {
-      throw new Error("RATE_LIMIT_EXCEEDED");
-    }
-
-    // 4. SERVER ERRORS
-    if (msg.includes("503") || msg.includes("500") || msg.includes("overloaded")) {
-      throw new Error("سرویس هوش مصنوعی موقتاً در دسترس نیست (ترافیک بالا). لطفاً دقایقی دیگر تلاش کنید.");
-    }
-
-    // 5. SAFETY / NOT FOUND
-    if (msg.includes("safety") || msg.includes("blocked")) {
-      return "متاسفانه پاسخ به این درخواست به دلایل ایمنی توسط مدل فیلتر شد.";
-    }
-    if (msg.includes("404")) {
-        // If we are here, it means even the fallback failed or we were already on the fallback.
-        throw new Error("مدل انتخاب شده با این کلید در دسترس نیست. (خطای 404)");
-    }
-
-    // Default Error for System Keys
-    if (!isUserKey) {
-        throw new Error("RATE_LIMIT_EXCEEDED");
-    }
-
-    throw new Error("خطایی نامشخص در ارتباط با سرور رخ داده است.");
+  // 5. Handle Errors if all attempts failed
+  if (lastError) {
+      const msg = (lastError.message || JSON.stringify(lastError)).toLowerCase();
+      
+      if (msg.includes("403") || msg.includes("api key") || msg.includes("invalid")) {
+          throw new Error("API_KEY_INVALID");
+      }
+      if (msg.includes("429") || msg.includes("quota") || msg.includes("exhausted")) {
+          throw new Error("RATE_LIMIT_EXCEEDED");
+      }
+      // Pass network errors through so App.tsx can show the network badge
+      throw lastError;
   }
+  
+  throw new Error("Unable to generate response. Please try again.");
 };
