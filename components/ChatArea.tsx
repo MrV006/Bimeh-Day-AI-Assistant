@@ -47,6 +47,82 @@ const escapeRegExp = (string: string) => {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
 
+interface BookmarkNoteProps {
+  msg: Message;
+  editingNoteId: string | null;
+  noteContent: string;
+  onNoteContentChange: (text: string) => void;
+  onStartEdit: (msg: Message) => void;
+  onCancelEdit: () => void;
+  onSaveNote: (id: string) => void;
+}
+
+const BookmarkNote: React.FC<BookmarkNoteProps> = ({
+  msg,
+  editingNoteId,
+  noteContent,
+  onNoteContentChange,
+  onStartEdit,
+  onCancelEdit,
+  onSaveNote
+}) => {
+  const isEditing = editingNoteId === msg.id;
+
+  if (isEditing) {
+    return (
+      <div className={`mt-3 p-3 rounded-lg border ${msg.role === Role.USER ? 'bg-white/10 border-white/20' : 'bg-yellow-50 border-yellow-200'} animate-fade-in`}>
+        <textarea
+          autoFocus
+          dir="rtl"
+          value={noteContent}
+          onChange={(e) => onNoteContentChange(e.target.value)}
+          placeholder="یادداشت خود را اینجا بنویسید..."
+          className={`w-full text-sm p-2 rounded bg-transparent border-b focus:outline-none resize-none text-right ${msg.role === Role.USER ? 'text-white placeholder-white/60 border-white/30 focus:border-white' : 'text-gray-700 placeholder-gray-400 border-yellow-300 focus:border-yellow-500'}`}
+          rows={2}
+        />
+        <div className="flex justify-end gap-2 mt-2">
+          <button onClick={onCancelEdit} className={`text-xs px-2 py-1 rounded transition-colors ${msg.role === Role.USER ? 'text-white/80 hover:bg-white/10' : 'text-gray-500 hover:bg-gray-200'}`}>
+            انصراف
+          </button>
+          <button onClick={() => onSaveNote(msg.id)} className="text-xs px-3 py-1 bg-day-accent text-white rounded hover:bg-pink-700 transition-colors shadow-sm">
+            ذخیره یادداشت
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (msg.bookmarkNote) {
+    return (
+      <div className={`mt-3 p-2.5 rounded-lg border text-sm relative group/note ${msg.role === Role.USER ? 'bg-white/10 border-white/20 text-white' : 'bg-yellow-50 border-yellow-100 text-gray-700'}`}>
+        <div className="flex items-start gap-2">
+          <Bookmark size={14} className={`mt-1 shrink-0 ${msg.role === Role.USER ? 'text-white/70' : 'text-yellow-500'}`} />
+          <p className="whitespace-pre-wrap leading-relaxed text-xs md:text-sm opacity-90">{msg.bookmarkNote}</p>
+        </div>
+        <button 
+          onClick={() => onStartEdit(msg)}
+          className={`absolute top-2 left-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity ${msg.role === Role.USER ? 'hover:bg-white/20 text-white' : 'hover:bg-yellow-200 text-gray-500'}`}
+          title="ویرایش یادداشت"
+        >
+          <Pen size={12} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+     <div className="mt-2 flex justify-end">
+       <button 
+          onClick={() => onStartEdit(msg)}
+          className={`text-[10px] flex items-center gap-1 opacity-60 hover:opacity-100 transition-opacity ${msg.role === Role.USER ? 'text-white' : 'text-gray-400 hover:text-day-teal'}`}
+       >
+         <Pen size={10} />
+         <span>افزودن یادداشت</span>
+       </button>
+     </div>
+  );
+};
+
 const ChatArea: React.FC<ChatAreaProps> = ({ 
   messages, 
   isLoading, 
@@ -416,65 +492,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     td: ({node, ...props}: any) => <td className="px-4 py-3 whitespace-nowrap text-gray-700 border-l border-gray-100 last:border-0" {...props} />,
   };
 
-  const BookmarkNote = ({ msg }: { msg: Message }) => {
-    const isEditing = editingNoteId === msg.id;
-
-    if (isEditing) {
-      return (
-        <div className={`mt-3 p-3 rounded-lg border ${msg.role === Role.USER ? 'bg-white/10 border-white/20' : 'bg-yellow-50 border-yellow-200'} animate-fade-in`}>
-          <textarea
-            autoFocus
-            dir="rtl"
-            value={noteContent}
-            onChange={(e) => setNoteContent(e.target.value)}
-            placeholder="یادداشت خود را اینجا بنویسید..."
-            className={`w-full text-sm p-2 rounded bg-transparent border-b focus:outline-none resize-none text-right ${msg.role === Role.USER ? 'text-white placeholder-white/60 border-white/30 focus:border-white' : 'text-gray-700 placeholder-gray-400 border-yellow-300 focus:border-yellow-500'}`}
-            rows={2}
-          />
-          <div className="flex justify-end gap-2 mt-2">
-            <button onClick={handleCancelEdit} className={`text-xs px-2 py-1 rounded transition-colors ${msg.role === Role.USER ? 'text-white/80 hover:bg-white/10' : 'text-gray-500 hover:bg-gray-200'}`}>
-              انصراف
-            </button>
-            <button onClick={() => handleSaveNote(msg.id)} className="text-xs px-3 py-1 bg-day-accent text-white rounded hover:bg-pink-700 transition-colors shadow-sm">
-              ذخیره یادداشت
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    if (msg.bookmarkNote) {
-      return (
-        <div className={`mt-3 p-2.5 rounded-lg border text-sm relative group/note ${msg.role === Role.USER ? 'bg-white/10 border-white/20 text-white' : 'bg-yellow-50 border-yellow-100 text-gray-700'}`}>
-          <div className="flex items-start gap-2">
-            <Bookmark size={14} className={`mt-1 shrink-0 ${msg.role === Role.USER ? 'text-white/70' : 'text-yellow-500'}`} />
-            <p className="whitespace-pre-wrap leading-relaxed text-xs md:text-sm opacity-90">{msg.bookmarkNote}</p>
-          </div>
-          <button 
-            onClick={() => handleStartEditNote(msg)}
-            className={`absolute top-2 left-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity ${msg.role === Role.USER ? 'hover:bg-white/20 text-white' : 'hover:bg-yellow-200 text-gray-500'}`}
-            title="ویرایش یادداشت"
-          >
-            <Pen size={12} />
-          </button>
-        </div>
-      );
-    }
-
-    return (
-       <div className="mt-2 flex justify-end">
-         <button 
-            onClick={() => handleStartEditNote(msg)}
-            className={`text-[10px] flex items-center gap-1 opacity-60 hover:opacity-100 transition-opacity ${msg.role === Role.USER ? 'text-white' : 'text-gray-400 hover:text-day-teal'}`}
-         >
-           <Pen size={10} />
-           <span>افزودن یادداشت</span>
-         </button>
-       </div>
-    );
-  };
-
-
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-day-bg relative overflow-hidden">
       
@@ -708,7 +725,15 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                         )}
 
                         {msg.isBookmarked && (
-                          <BookmarkNote msg={msg} />
+                          <BookmarkNote 
+                            msg={msg}
+                            editingNoteId={editingNoteId}
+                            noteContent={noteContent}
+                            onNoteContentChange={setNoteContent}
+                            onStartEdit={handleStartEditNote}
+                            onCancelEdit={handleCancelEdit}
+                            onSaveNote={handleSaveNote}
+                          />
                         )}
 
                         {!msg.isError && (
@@ -769,7 +794,15 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                       <div className="whitespace-pre-wrap break-words">
                         <HighlightText text={msg.text} />
                         {msg.isBookmarked && (
-                          <BookmarkNote msg={msg} />
+                          <BookmarkNote 
+                            msg={msg}
+                            editingNoteId={editingNoteId}
+                            noteContent={noteContent}
+                            onNoteContentChange={setNoteContent}
+                            onStartEdit={handleStartEditNote}
+                            onCancelEdit={handleCancelEdit}
+                            onSaveNote={handleSaveNote}
+                          />
                         )}
                       </div>
                     )}

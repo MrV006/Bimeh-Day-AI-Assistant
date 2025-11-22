@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { KnowledgeSource, Role, Message, ModelId, ModelConfig } from '../types';
 
@@ -69,6 +70,7 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
 
 // Obfuscated Fallback Keys (Reversed)
 const FALLBACK_KEYS = [
+  '0aAFOLV0plmRoWXT5fqGCQGpoeXK9t5CySazIA', // Key from screenshot
   '86cuuVd9uoDB8eFwwxp9H0-utc72yXOyCySazIA',
   '8otDxZYwqHTnsRV2V-irDlqFXa9yNiY9ySazIA',
   '0aFOkV0plmRoWXT5fqGCQpoeXKr9t5CySazIA',
@@ -121,6 +123,7 @@ const tryGenerateWithModel = async (
       lastError = error;
 
       // If user provided a specific key, we stop immediately on error to show them the feedback
+      // and DO NOT try other system keys.
       if (isUserKey) {
          throw error;
       }
@@ -174,6 +177,7 @@ export const generateInsuranceResponse = async (
   const isUserKey = !!(userApiKey && userApiKey.trim() !== "");
 
   if (isUserKey) {
+    // STRICT MODE: Only use the provided key
     keysToTry = [userApiKey!.trim()];
   } else {
     // Shuffle fallback keys

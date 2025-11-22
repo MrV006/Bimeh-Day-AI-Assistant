@@ -5,9 +5,9 @@ import ChatArea from './components/ChatArea';
 import InputArea from './components/InputArea';
 import { generateInsuranceResponse, AVAILABLE_MODELS } from './services/geminiService';
 import { Message, KnowledgeSource, Role, ChatSession, ModelId, UsageStats, VisitorLog } from './types';
-import { Menu, RefreshCw, Key, X, ExternalLink, CheckCircle, BarChart3, Users, MapPin, Wifi, Server, Globe2, Activity, Cpu, Info, Database, ShieldCheck, FileText, Bot } from './components/Icons';
+import { Menu, RefreshCw, Key, X, ExternalLink, CheckCircle, BarChart3, Users, MapPin, Wifi, Server, Globe2, Activity, Cpu, Info, Database, ShieldCheck, FileText, Bot, XCircle } from './components/Icons';
 
-const APP_VERSION = 'v1.2.2';
+const APP_VERSION = 'v1.2.3';
 
 const INITIAL_SOURCES: KnowledgeSource[] = [
   {
@@ -123,6 +123,13 @@ const App: React.FC = () => {
   // Connection Status State
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [ping, setPing] = useState<number | null>(null);
+
+  // Sync tempApiKey when modal opens
+  useEffect(() => {
+    if (showApiKeyModal) {
+      setTempApiKey(userApiKey);
+    }
+  }, [showApiKeyModal, userApiKey]);
 
   // Connection Check Logic
   useEffect(() => {
@@ -276,13 +283,30 @@ const App: React.FC = () => {
 
   const handleSaveApiKey = () => {
     const cleanedKey = tempApiKey.trim();
-    if (cleanedKey) {
+    
+    // Case 1: New key entered
+    if (cleanedKey && cleanedKey !== userApiKey) {
         setUserApiKey(cleanedKey);
         setShowApiKeyModal(false);
         setTempApiKey('');
-        alert('کلید API با موفقیت ذخیره شد. لطفاً مجدداً پیام خود را ارسال کنید.');
+        alert('کلید API با موفقیت بروزرسانی شد.');
+        triggerUpdateCheck();
+        return;
     }
-    triggerUpdateCheck();
+
+    // Case 2: Key field cleared (intent to delete)
+    if (!cleanedKey && userApiKey) {
+        if (window.confirm('آیا مطمئن هستید که می‌خواهید کلید ذخیره شده را حذف کنید؟')) {
+            setUserApiKey('');
+            setTempApiKey('');
+            setShowApiKeyModal(false);
+            triggerUpdateCheck();
+        }
+        return;
+    }
+
+    // Case 3: No changes or closing with existing key
+    setShowApiKeyModal(false);
   };
 
   const handleClearApiKey = () => {
@@ -907,23 +931,33 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
-                    <div>
+                    <div className="relative">
                         <label className="block text-xs font-bold text-gray-700 mb-2">کلید API شما:</label>
-                        <input 
-                            type="password" 
-                            placeholder="AIzaSy..." 
-                            value={tempApiKey || userApiKey}
-                            onChange={(e) => setTempApiKey(e.target.value)}
-                            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:border-day-teal focus:ring-2 focus:ring-cyan-100 outline-none dir-ltr text-left"
-                        />
+                        <div className="relative">
+                            <input 
+                                type="password" 
+                                placeholder="AIzaSy..." 
+                                value={tempApiKey}
+                                onChange={(e) => setTempApiKey(e.target.value)}
+                                className="w-full p-3 pl-10 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:border-day-teal focus:ring-2 focus:ring-cyan-100 outline-none dir-ltr text-left"
+                            />
+                            {tempApiKey && (
+                                <button 
+                                    onClick={() => setTempApiKey('')}
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors"
+                                    title="پاک کردن"
+                                >
+                                    <XCircle size={18} />
+                                </button>
+                            )}
+                        </div>
                     </div>
                     
                     <button 
                         onClick={handleSaveApiKey}
-                        disabled={!tempApiKey && !userApiKey}
-                        className="w-full bg-day-teal hover:bg-day-dark text-white py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-cyan-100 disabled:bg-gray-300 disabled:shadow-none"
+                        className="w-full bg-day-teal hover:bg-day-dark text-white py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-cyan-100"
                     >
-                        {userApiKey && !tempApiKey ? 'بستن و استفاده از کلید فعلی' : 'ذخیره و اتصال'}
+                        {!tempApiKey && userApiKey ? 'حذف کلید و استفاده از پیش‌فرض' : (userApiKey && tempApiKey === userApiKey ? 'بستن و استفاده از کلید فعلی' : 'ذخیره و اتصال')}
                     </button>
 
                     <div className="border-t border-gray-100 my-4"></div>
@@ -952,14 +986,6 @@ const App: React.FC = () => {
                             </li>
                         </ol>
                     </div>
-
-                    {userApiKey && (
-                         <div className="text-center pt-2">
-                            <button onClick={handleClearApiKey} className="text-[11px] text-red-500 hover:text-red-700 underline">
-                                حذف کلید ذخیره شده
-                            </button>
-                         </div>
-                    )}
                 </div>
             </div>
           </div>
