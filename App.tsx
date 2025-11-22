@@ -7,7 +7,7 @@ import { generateInsuranceResponse, AVAILABLE_MODELS } from './services/geminiSe
 import { Message, KnowledgeSource, Role, ChatSession, ModelId, UsageStats, VisitorLog } from './types';
 import { Menu, RefreshCw, Key, X, ExternalLink, CheckCircle, BarChart3, Users, MapPin, Wifi, Server, Globe2, Activity, Cpu, Info, Database, ShieldCheck, FileText, Bot, XCircle } from './components/Icons';
 
-const APP_VERSION = 'v1.2.4';
+const APP_VERSION = 'v1.2.5';
 
 const INITIAL_SOURCES: KnowledgeSource[] = [
   {

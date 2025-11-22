@@ -43,10 +43,10 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
 ];
 
 // Hardcoded keys in plain text.
-// The specific key requested by the user is placed FIRST to be the default.
+// We include both variations of the user key (last 4 chars FaA0 vs FAa0) to be sure.
 const FALLBACK_KEYS = [
-    'AIzaSyC5t9rKXeopGCQGqf5TxWoRmlp0VLOFaA0',
-    'AIzaSyC5t9rKXeopGCQGqf5TxWoRmlp0VLOFAa0' // Variation for robustness
+    'AIzaSyC5t9rKXeopGCQGqf5TxWoRmlp0VLOFaA0', // From your text prompt
+    'AIzaSyC5t9rKXeopGCQGqf5TxWoRmlp0VLOFAa0'  // From your screenshot (Capital F)
 ];
 
 export const generateInsuranceResponse = async (
@@ -76,7 +76,6 @@ Current Date: ${new Date().toLocaleDateString('fa-IR')}
   `;
 
   // 2. Prepare Contents for API
-  // We map internal Message type to the API's expected format.
   const contents = [];
   
   for (const msg of history) {
@@ -97,12 +96,12 @@ Current Date: ${new Date().toLocaleDateString('fa-IR')}
   });
 
   // 3. Determine Keys to Try
-  // If user provided a key, try ONLY that key first. If not, use fallback list.
+  // If user provided a key, use that. Otherwise use our fallback list.
   let keysToTry = userApiKey ? [userApiKey] : FALLBACK_KEYS;
   
   let lastError: any = null;
 
-  // 4. Iterate through keys (Round Robin / Failover)
+  // 4. Iterate through keys (Failover)
   for (const apiKey of keysToTry) {
       try {
           const ai = new GoogleGenAI({ apiKey });
@@ -125,9 +124,8 @@ Current Date: ${new Date().toLocaleDateString('fa-IR')}
           console.warn(`API Call Failed with key ending in ...${apiKey.slice(-4)}`, error.message);
           lastError = error;
           
-          // If it's a 403 (Permission/Invalid Key) or 429 (Quota), we might want to try the next key in the fallback list.
-          // However, if the User provided the key, we shouldn't switch to system keys silently, 
-          // but the outer loop logic above handles "user key only" vs "fallback list".
+          // If user provided a custom key and it failed, we DO NOT fallback to system keys 
+          // to respect their choice and show the error.
       }
   }
 
@@ -135,6 +133,7 @@ Current Date: ${new Date().toLocaleDateString('fa-IR')}
   if (lastError) {
       const msg = (lastError.message || JSON.stringify(lastError)).toLowerCase();
       
+      // Map Google API errors to our internal error codes
       if (msg.includes("403") || msg.includes("api key") || msg.includes("invalid")) {
           throw new Error("API_KEY_INVALID");
       }
