@@ -1,60 +1,23 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { KnowledgeSource, Role, Message, ModelId, ModelConfig } from '../types';
+import { KnowledgeSource, Role, Message, ModelId } from '../types';
 
-export const AVAILABLE_MODELS: ModelConfig[] = [
-  {
-    id: 'gemini-2.0-flash',
-    name: 'Gemini 2.0 Flash',
-    description: 'سریع‌ترین و جدیدترین مدل گوگل (پیشنهادی)',
-    rpm: 15,
-    rpd: 1500,
-    tpm: '1M',
-    isNew: true,
-    isStable: true
-  },
-  {
-    id: 'gemini-2.0-flash-lite-preview-02-05',
-    name: 'Gemini 2.0 Flash Lite',
-    description: 'نسخه سبک و فوق‌سریع',
-    rpm: 30,
-    rpd: 1500,
-    tpm: '1M',
-    isNew: true
-  },
-  {
-    id: 'gemini-1.5-flash',
-    name: 'Gemini 1.5 Flash',
-    description: 'پایدار و مقرون به صرفه',
-    rpm: 15,
-    rpd: 1500,
-    tpm: '1M',
-    isStable: true
-  },
-  {
-    id: 'gemini-1.5-pro',
-    name: 'Gemini 1.5 Pro',
-    description: 'هوشمندترین مدل (کندتر)',
-    rpm: 2,
-    rpd: 50,
-    tpm: '32K',
-    isPro: true
-  }
-];
+// Hardcoded Default Key (Security ignored as per request)
+const DEFAULT_API_KEY = 'AIzaSyD9YiNy9aXFqDlri-V2VRsnTHqwYZxDto8';
 
-// Hardcoded keys in plain text.
-// We include both variations of the user key (last 4 chars FaA0 vs FAa0) to be sure.
-const FALLBACK_KEYS = [
-    'AIzaSyC5t9rKXeopGCQGqf5TxWoRmlp0VLOFaA0', // From your text prompt
-    'AIzaSyC5t9rKXeopGCQGqf5TxWoRmlp0VLOFAa0'  // From your screenshot (Capital F)
+// Priority list of models to try automatically
+const MODEL_PRIORITY_LIST: string[] = [
+  'gemini-2.0-flash',
+  'gemini-2.0-flash-lite-preview-02-05',
+  'gemini-1.5-flash',
+  'gemini-1.5-pro'
 ];
 
 export const generateInsuranceResponse = async (
   history: Message[],
   currentMessage: string,
   sources: KnowledgeSource[],
-  userApiKey: string | null,
-  modelId: ModelId
+  userApiKey: string | null
 ): Promise<string> => {
   
   // 1. Construct Context from Knowledge Base (RAG)
@@ -95,37 +58,41 @@ Current Date: ${new Date().toLocaleDateString('fa-IR')}
       parts: [{ text: finalPrompt }]
   });
 
-  // 3. Determine Keys to Try
-  // If user provided a key, use that. Otherwise use our fallback list.
-  let keysToTry = userApiKey ? [userApiKey] : FALLBACK_KEYS;
-  
+  // 3. Select API Key (User's key takes priority, otherwise Default)
+  const apiKey = userApiKey || DEFAULT_API_KEY;
+  const ai = new GoogleGenAI({ apiKey });
+
   let lastError: any = null;
 
-  // 4. Iterate through keys (Failover)
-  for (const apiKey of keysToTry) {
+  // 4. Iterate through models to find one that works
+  for (const model of MODEL_PRIORITY_LIST) {
       try {
-          const ai = new GoogleGenAI({ apiKey });
-          
+          // console.log(`Attempting with model: ${model}`); // Debug
           const response = await ai.models.generateContent({
-              model: modelId,
+              model: model,
               contents: contents,
               config: {
                   systemInstruction: systemInstruction,
                   temperature: 0.4,
-                  maxOutputTokens: 1500,
+                  // Remove maxOutputTokens to let the model decide or use default
               }
           });
 
           if (response.text) {
               return response.text;
           }
-          
       } catch (error: any) {
-          console.warn(`API Call Failed with key ending in ...${apiKey.slice(-4)}`, error.message);
+          const msg = (error.message || JSON.stringify(error)).toLowerCase();
           lastError = error;
-          
-          // If user provided a custom key and it failed, we DO NOT fallback to system keys 
-          // to respect their choice and show the error.
+
+          // If the error is related to the API Key (Invalid/Permission), stop trying other models
+          // because they will all fail with the same key.
+          if (msg.includes("403") || msg.includes("api key") || msg.includes("invalid") || msg.includes("permission")) {
+             throw new Error("API_KEY_INVALID");
+          }
+
+          // If it's a 429 (Rate Limit) or 503 (Overloaded), we continue to the next model loop.
+          console.warn(`Model ${model} failed:`, msg);
       }
   }
 
@@ -133,16 +100,16 @@ Current Date: ${new Date().toLocaleDateString('fa-IR')}
   if (lastError) {
       const msg = (lastError.message || JSON.stringify(lastError)).toLowerCase();
       
-      // Map Google API errors to our internal error codes
-      if (msg.includes("403") || msg.includes("api key") || msg.includes("invalid")) {
-          throw new Error("API_KEY_INVALID");
-      }
       if (msg.includes("429") || msg.includes("quota") || msg.includes("exhausted")) {
           throw new Error("RATE_LIMIT_EXCEEDED");
       }
-      // Pass network errors through so App.tsx can show the network badge
+      
+      // Pass other errors (network etc)
       throw lastError;
   }
   
-  throw new Error("Unable to generate response. Please try again.");
+  throw new Error("Unable to generate response. Please try again later.");
 };
+
+// Simplified export for UI display if needed, though selection is disabled
+export const AVAILABLE_MODELS = []; 

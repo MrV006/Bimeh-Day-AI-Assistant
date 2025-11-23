@@ -1,8 +1,7 @@
 
 import React, { useState, DragEvent, useRef, useMemo } from 'react';
-import { KnowledgeSource, ChatSession, ModelId } from '../types';
-import { AVAILABLE_MODELS } from '../services/geminiService';
-import { Plus, FileText, Trash2, Database, ShieldCheck, UploadCloud, Loader, MessageSquarePlus, X, Search, ArrowUpDown, History, Eraser, MessageSquare, Globe, Link, Cpu, Check, ChevronDown, BarChart3, Info, ChevronUp, Wifi, Phone, Github, Key } from './Icons';
+import { KnowledgeSource, ChatSession } from '../types';
+import { Plus, FileText, Trash2, Database, ShieldCheck, UploadCloud, Loader, MessageSquarePlus, X, Search, ArrowUpDown, History, Eraser, MessageSquare, Globe, Link, Check, BarChart3, Info, Wifi, Phone, Github, Key } from './Icons';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
@@ -14,9 +13,7 @@ interface SidebarProps {
   toggleSidebar: () => void;
   sources: KnowledgeSource[];
   chatHistory: ChatSession[];
-  selectedModel: ModelId;
   appVersion: string;
-  onSelectModel: (model: ModelId) => void;
   onAddSource: (source: KnowledgeSource) => void;
   onToggleSource: (id: string) => void;
   onDeleteSource: (id: string) => void;
@@ -41,9 +38,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   toggleSidebar,
   sources,
   chatHistory,
-  selectedModel,
   appVersion,
-  onSelectModel,
   onAddSource,
   onToggleSource,
   onDeleteSource,
@@ -59,7 +54,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   ping
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('sources');
-  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   
   // Source State
   const [isAdding, setIsAdding] = useState(false);
@@ -248,11 +242,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     if (fileInputRef.current) {
         fileInputRef.current.value = '';
     }
-  };
-
-  const getActiveModelName = () => {
-    const model = AVAILABLE_MODELS.find(m => m.id === selectedModel);
-    return model ? model.name : 'انتخاب مدل';
   };
 
   return (
@@ -470,37 +459,6 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         {/* === FOOTER === */}
         <div className="bg-white border-t border-gray-200 p-4 z-40">
-            {/* Model Selector */}
-            <div className="relative mb-3">
-                 <button onClick={() => setIsModelMenuOpen(!isModelMenuOpen)} className="w-full flex items-center justify-between bg-gray-50 hover:bg-gray-100 border border-gray-200 px-3 py-2.5 rounded-xl text-xs transition-colors group">
-                    <div className="flex items-center gap-2 text-gray-700">
-                        <Cpu size={16} className="text-day-teal" />
-                        <div className="flex flex-col items-start">
-                            <span className="font-bold text-[10px] text-gray-400 uppercase">مدل فعال</span>
-                            <span className="font-bold truncate w-[140px] text-left">{getActiveModelName()}</span>
-                        </div>
-                    </div>
-                    <div className={`bg-white p-1 rounded-md shadow-sm border border-gray-100 transition-transform duration-200 ${isModelMenuOpen ? 'rotate-180' : ''}`}>
-                        <ChevronUp size={12} className="text-gray-400" />
-                    </div>
-                 </button>
-
-                 {/* Dropdown Menu */}
-                 {isModelMenuOpen && (
-                   <div className="absolute bottom-full left-0 w-full mb-2 bg-white rounded-xl shadow-2xl border border-gray-200 py-1 z-50 overflow-hidden max-h-[300px] overflow-y-auto custom-scrollbar animate-fade-in">
-                     {AVAILABLE_MODELS.map((model) => (
-                       <button key={model.id} onClick={() => { onSelectModel(model.id); setIsModelMenuOpen(false); }} className="w-full px-3 py-2 text-right hover:bg-cyan-50 flex flex-col gap-1 border-b border-gray-50 last:border-0 transition-colors">
-                         <div className="flex items-center justify-between w-full">
-                            <span className={`text-xs font-bold ${selectedModel === model.id ? 'text-day-teal' : 'text-gray-700'}`}>{model.name}</span>
-                            {selectedModel === model.id && <Check size={12} className="text-day-teal" />}
-                         </div>
-                         <span className="text-[9px] text-gray-400 line-clamp-1">{model.description}</span>
-                       </button>
-                     ))}
-                   </div>
-                 )}
-            </div>
-
             {/* Connection Status */}
             <div className={`mb-3 px-3 py-2 rounded-xl flex items-center justify-between text-xs font-bold border transition-all duration-500 ${isOnline ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
                 <div className="flex items-center gap-2">

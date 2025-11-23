@@ -1,20 +1,18 @@
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Message, Role, ModelId } from '../types';
-import { Bot, User, Copy, Check, Car, HeartPulse, FileCheck, Briefcase, Search, ChevronUp, ChevronDown, X, Eye, Download, Printer, FileText, ClipboardList, Bookmark, Pen, Share, ArrowUp, RefreshCcw, Cpu, Key, Sparkles, Loader } from './Icons';
+import { Message, Role } from '../types';
+import { Bot, User, Copy, Check, Car, HeartPulse, FileCheck, Briefcase, Search, ChevronUp, ChevronDown, X, Eye, Download, Printer, FileText, ClipboardList, Bookmark, Pen, Share, ArrowUp, RefreshCcw, Key } from './Icons';
 import * as docx from 'docx';
 import saveAs from 'file-saver';
 
 interface ChatAreaProps {
   messages: Message[];
   isLoading: boolean;
-  selectedModel: ModelId;
   onQuickPrompt?: (text: string) => void;
   onToggleBookmark: (id: string) => void;
   onUpdateBookmarkNote: (id: string, note: string) => void;
   onRetry: () => void;
-  onSwitchModelRetry: () => void;
   onOpenSettings: () => void;
 }
 
@@ -126,12 +124,10 @@ const BookmarkNote: React.FC<BookmarkNoteProps> = ({
 const ChatArea: React.FC<ChatAreaProps> = ({ 
   messages, 
   isLoading, 
-  selectedModel,
   onQuickPrompt, 
   onToggleBookmark, 
   onUpdateBookmarkNote,
   onRetry,
-  onSwitchModelRetry,
   onOpenSettings
 }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -159,14 +155,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({
   // Scroll To Top State
   const [showScrollTop, setShowScrollTop] = useState(false);
   
-  // Auto-switch loading state
-  const [isSwitching, setIsSwitching] = useState(false);
-
-  const handleSwitchClick = () => {
-    setIsSwitching(true);
-    onSwitchModelRetry();
-    setTimeout(() => setIsSwitching(false), 3000);
-  };
 
   // Filter messages for display
   const displayMessages = useMemo(() => {
@@ -705,15 +693,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                                تلاش مجدد
                              </button>
                              
-                             <button 
-                               onClick={handleSwitchClick}
-                               disabled={isSwitching}
-                               className="flex items-center gap-1 text-xs bg-day-teal text-white border border-transparent px-3 py-1.5 rounded-lg hover:bg-day-dark transition-colors shadow-sm font-medium disabled:opacity-70 disabled:cursor-not-allowed"
-                             >
-                               {isSwitching ? <Loader size={14} className="animate-spin" /> : <Sparkles size={14} />}
-                               تلاش با مدل جایگزین
-                             </button>
-
                              <button 
                                onClick={onOpenSettings}
                                className="flex items-center gap-1 text-xs bg-gray-100 text-gray-600 border border-transparent px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-colors font-medium"

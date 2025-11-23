@@ -3,11 +3,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatArea from './components/ChatArea';
 import InputArea from './components/InputArea';
-import { generateInsuranceResponse, AVAILABLE_MODELS } from './services/geminiService';
-import { Message, KnowledgeSource, Role, ChatSession, ModelId, UsageStats, VisitorLog } from './types';
+import { generateInsuranceResponse } from './services/geminiService';
+import { Message, KnowledgeSource, Role, ChatSession, UsageStats, VisitorLog } from './types';
 import { Menu, RefreshCw, Key, X, ExternalLink, CheckCircle, BarChart3, Users, MapPin, Wifi, Server, Globe2, Activity, Cpu, Info, Database, ShieldCheck, FileText, Bot, XCircle } from './components/Icons';
 
-const APP_VERSION = 'v1.2.5';
+const APP_VERSION = 'v1.3.0';
 
 const INITIAL_SOURCES: KnowledgeSource[] = [
   {
@@ -33,7 +33,6 @@ const STORAGE_KEYS = {
   SOURCES: 'bimeh_day_sources',
   HISTORY: 'bimeh_day_chat_history',
   API_KEY: 'bimeh_day_user_api_key',
-  MODEL: 'bimeh_day_selected_model',
   USAGE: 'bimeh_day_usage_stats',
   WELCOME_SEEN: 'bimeh_day_welcome_seen'
 };
@@ -83,11 +82,6 @@ const App: React.FC = () => {
   const [userApiKey, setUserApiKey] = useState<string>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.API_KEY);
     return saved || '';
-  });
-
-  // Model State
-  const [selectedModel, setSelectedModel] = useState<ModelId>(() => {
-    return (localStorage.getItem(STORAGE_KEYS.MODEL) as ModelId) || 'gemini-2.0-flash';
   });
 
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
@@ -185,10 +179,6 @@ const App: React.FC = () => {
         }
     } catch(e){}
   }, [userApiKey]);
-
-  useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEYS.MODEL, selectedModel); } catch(e){}
-  }, [selectedModel]);
 
   // Initial Welcome Modal Check
   useEffect(() => {
@@ -351,7 +341,6 @@ const App: React.FC = () => {
       localStorage.removeItem(STORAGE_KEYS.SOURCES);
       localStorage.removeItem(STORAGE_KEYS.HISTORY);
       localStorage.removeItem(STORAGE_KEYS.API_KEY);
-      localStorage.removeItem(STORAGE_KEYS.MODEL);
       localStorage.removeItem(STORAGE_KEYS.USAGE);
       localStorage.removeItem(STORAGE_KEYS.WELCOME_SEEN);
       setMessages([]);
@@ -359,14 +348,13 @@ const App: React.FC = () => {
       setChatHistory([]);
       setUsageStats({});
       setUserApiKey('');
-      setSelectedModel('gemini-2.0-flash');
     }
   };
 
-  const updateUsageStats = (modelId: string) => {
+  const updateUsageStats = () => {
     const now = Date.now();
     setUsageStats(prev => {
-      const stats = prev[modelId] || { minuteCount: 0, lastMinuteReset: now, dayCount: 0, lastDayReset: now };
+      const stats = prev['default'] || { minuteCount: 0, lastMinuteReset: now, dayCount: 0, lastDayReset: now };
       
       if (now - stats.lastMinuteReset > 60000) {
         stats.minuteCount = 0;
@@ -380,7 +368,7 @@ const App: React.FC = () => {
       
       return {
         ...prev,
-        [modelId]: {
+        'default': {
           ...stats,
           minuteCount: stats.minuteCount + 1,
           dayCount: stats.dayCount + 1
@@ -389,9 +377,8 @@ const App: React.FC = () => {
     });
   };
 
-  const handleSendMessage = async (text: string, specificModelId?: ModelId, isRetry: boolean = false) => {
+  const handleSendMessage = async (text: string, isRetry: boolean = false) => {
     triggerUpdateCheck();
-    const modelToUse = specificModelId || selectedModel;
     
     const userMsg: Message = {
       id: Date.now().toString(),
@@ -401,12 +388,12 @@ const App: React.FC = () => {
     };
     
     // Only add user message if it's not a retry. 
-    if (!isRetry && !specificModelId) {
+    if (!isRetry) {
         setMessages(prev => [...prev, userMsg]);
     }
     
     setIsLoading(true);
-    updateUsageStats(modelToUse);
+    updateUsageStats();
 
     try {
       // Filter messages: exclude errors.
@@ -416,8 +403,7 @@ const App: React.FC = () => {
         historyContext,
         text,
         sources,
-        userApiKey, 
-        modelToUse
+        userApiKey
       );
 
       const botMsg: Message = {
@@ -428,38 +414,22 @@ const App: React.FC = () => {
       };
       setMessages(prev => [...prev, botMsg]);
       
-      if (specificModelId && specificModelId !== selectedModel) {
-          setSelectedModel(specificModelId);
-      }
-
     } catch (error: any) {
       if (error.message === "API_KEY_INVALID") {
         setShowApiKeyModal(true);
         const errorMsg: Message = {
             id: (Date.now() + 1).toString(),
             role: Role.MODEL,
-            text: "خطای دسترسی به هوش مصنوعی. لطفاً کلید API خود را بررسی یا وارد کنید. (پنجره تنظیمات باز شد)",
+            text: "خطای دسترسی به هوش مصنوعی. کلید پیش‌فرض از کار افتاده است. لطفاً کلید اختصاصی خود را وارد کنید. (پنجره تنظیمات باز شد)",
             timestamp: Date.now(),
             isError: true
         };
         setMessages(prev => [...prev, errorMsg]);
       } else if (error.message === "RATE_LIMIT_EXCEEDED") {
-        const currentStats = usageStats[modelToUse];
-        const modelConfig = AVAILABLE_MODELS.find(m => m.id === modelToUse);
-        let rateLimitMsg = "به سقف مجاز استفاده از این مدل رسیدید.";
-
-        if (currentStats && modelConfig) {
-           if (currentStats.minuteCount >= modelConfig.rpm) {
-             rateLimitMsg = `شما بیش از ${modelConfig.rpm} پیام در دقیقه با مدل ${modelConfig.name} فرستادید.`;
-           } else if (currentStats.dayCount >= modelConfig.rpd) {
-             rateLimitMsg = `سقف استفاده روزانه (${modelConfig.rpd} پیام) برای مدل ${modelConfig.name} پر شده است.`;
-           }
-        }
-
         const errorMsg: Message = {
           id: (Date.now() + 1).toString(),
           role: Role.MODEL,
-          text: rateLimitMsg,
+          text: "تعداد درخواست‌های شما زیاد بوده است. لطفاً دقایقی صبر کنید.",
           timestamp: Date.now(),
           isError: true
         };
@@ -469,7 +439,7 @@ const App: React.FC = () => {
          const errorMsg: Message = {
           id: (Date.now() + 1).toString(),
           role: Role.MODEL,
-          text: "خطا در اتصال به شبکه. لطفاً اتصال اینترنت و فیلترشکن (VPN) خود را روشن کنید. (برای استفاده از این سرویس، VPN باید حتما روشن باشد)",
+          text: "خطا در اتصال به شبکه. لطفاً اتصال اینترنت و فیلترشکن (VPN) خود را بررسی کنید.",
           timestamp: Date.now(),
           isError: true
         };
@@ -506,72 +476,7 @@ const App: React.FC = () => {
     const lastUserMessage = messages[lastUserMessageIndex];
     
     setMessages(prev => prev.slice(0, lastUserMessageIndex + 1)); // Keep the user message
-    handleSendMessage(lastUserMessage.text, undefined, true);
-  };
-
-  const handleAutoSwitchModel = async () => {
-    triggerUpdateCheck();
-    let lastUserMessageIndex = -1;
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].role === Role.USER) {
-        lastUserMessageIndex = i;
-        break;
-      }
-    }
-    if (lastUserMessageIndex === -1) return;
-    const lastUserText = messages[lastUserMessageIndex].text;
-
-    setMessages(prev => prev.slice(0, lastUserMessageIndex + 1));
-    setIsLoading(true);
-
-    const candidateModels = AVAILABLE_MODELS.filter(m => m.id !== selectedModel).map(m => m.id);
-    let success = false;
-    let lastErrorMsg = "";
-
-    for (const modelId of candidateModels) {
-        try {
-            const responseText = await generateInsuranceResponse(
-                messages.filter(m => !m.isError && m.role !== Role.MODEL),
-                lastUserText,
-                sources,
-                userApiKey,
-                modelId
-            );
-            const botMsg: Message = {
-                id: (Date.now() + 1).toString(),
-                role: Role.MODEL,
-                text: responseText,
-                timestamp: Date.now()
-            };
-            setMessages(prev => [...prev, botMsg]);
-            setSelectedModel(modelId);
-            success = true;
-            break;
-        } catch (err: any) {
-            console.warn(`Auto-switch failed for ${modelId}`, err);
-            lastErrorMsg = err.message || "";
-        }
-    }
-
-    setIsLoading(false);
-
-    if (!success) {
-        // Check if it was a network error
-        let errorText = "متاسفانه تمامی مدل‌های هوش مصنوعی در حال حاضر مشغول یا محدود شده‌اند. لطفاً دقایقی دیگر تلاش کنید یا یک کلید API جدید وارد نمایید.";
-        
-        if (lastErrorMsg.includes("fetch") || lastErrorMsg.includes("Network") || lastErrorMsg.includes("Failed to fetch")) {
-             errorText = "خطا در اتصال به شبکه. لطفاً اتصال اینترنت و فیلترشکن (VPN) خود را روشن کنید. تمام مدل‌ها غیرقابل دسترس هستند.";
-        }
-
-        const errorMsg: Message = {
-            id: (Date.now() + 1).toString(),
-            role: Role.MODEL,
-            text: errorText,
-            timestamp: Date.now(),
-            isError: true
-        };
-        setMessages(prev => [...prev, errorMsg]);
-    }
+    handleSendMessage(lastUserMessage.text, true);
   };
 
   const handleAcceptWelcome = () => {
@@ -808,8 +713,8 @@ const App: React.FC = () => {
                          <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden">
                              <div className="flex justify-between items-start mb-4">
                                  <div>
-                                     <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">مدل فعال</span>
-                                     <h4 className="text-sm font-bold text-day-teal mt-2">{AVAILABLE_MODELS.find(m=>m.id===selectedModel)?.name}</h4>
+                                     <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">مدل هوشمند</span>
+                                     <h4 className="text-sm font-bold text-day-teal mt-2">انتخاب خودکار (Auto)</h4>
                                  </div>
                                  <div className="p-2 bg-cyan-50 text-day-teal rounded-lg"><Cpu size={20} /></div>
                              </div>
@@ -817,37 +722,9 @@ const App: React.FC = () => {
                      </div>
 
                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                         {/* API Usage */}
-                         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-                             <h4 className="font-bold text-gray-700 mb-4 flex items-center gap-2 text-sm">
-                                 <BarChart3 size={18} />
-                                 میزان مصرف منابع (امروز)
-                             </h4>
-                             <div className="space-y-4">
-                                 {AVAILABLE_MODELS.slice(0, 4).map(model => {
-                                     const stats = usageStats[model.id] || { dayCount: 0 };
-                                     const percent = Math.min((stats.dayCount / model.rpd) * 100, 100);
-                                     return (
-                                         <div key={model.id}>
-                                             <div className="flex justify-between text-xs mb-1.5">
-                                                 <span className="font-medium text-gray-600">{model.name}</span>
-                                                 <span className="text-gray-400">{stats.dayCount} / {model.rpd}</span>
-                                             </div>
-                                             <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                                                 <div 
-                                                    className={`h-full rounded-full transition-all duration-500 ${percent > 90 ? 'bg-red-500' : percent > 50 ? 'bg-amber-400' : 'bg-day-teal'}`} 
-                                                    style={{ width: `${percent}%` }}
-                                                 ></div>
-                                             </div>
-                                         </div>
-                                     );
-                                 })}
-                             </div>
-                             <p className="text-[10px] text-gray-400 mt-4 text-center">آمار مصرف به صورت روزانه (ساعت ۰۰:۰۰) ریست می‌شود.</p>
-                         </div>
-
+                         
                          {/* Visitor Logs */}
-                         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex flex-col">
+                         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex flex-col col-span-2">
                              <h4 className="font-bold text-gray-700 mb-4 flex items-center gap-2 text-sm">
                                  <Globe2 size={18} />
                                  آخرین فعالیت‌ها
@@ -910,7 +787,7 @@ const App: React.FC = () => {
             
             <div className="p-6">
                 <p className="text-sm text-gray-600 leading-relaxed mb-4 text-justify">
-                    به نظر می‌رسد کلید پیش‌فرض برنامه به سقف مجاز رسیده یا منقضی شده است. برای استفاده پایدار و رایگان، لطفاً کلید اختصاصی خود را وارد کنید.
+                    کلید پیش‌فرض برنامه در حال حاضر با مشکل مواجه شده است. برای ادامه استفاده، لطفاً یک کلید API اختصاصی وارد کنید.
                 </p>
 
                 <div className="bg-cyan-50 border border-cyan-100 rounded-xl p-3 mb-6 flex items-start gap-3">
@@ -1023,17 +900,13 @@ const App: React.FC = () => {
         </div>
         <span className="font-black text-lg text-day-teal tracking-tight">بیمه دی</span>
       </div>
-
-      {/* Desktop/Tablet API Key Button - HIDDEN now as it's in sidebar */}
       
       <Sidebar 
         isOpen={isSidebarOpen} 
         toggleSidebar={toggleSidebar}
         sources={sources}
         chatHistory={chatHistory}
-        selectedModel={selectedModel}
         appVersion={APP_VERSION}
-        onSelectModel={setSelectedModel}
         onAddSource={handleAddSource}
         onToggleSource={handleToggleSource}
         onDeleteSource={handleDeleteSource}
@@ -1053,15 +926,13 @@ const App: React.FC = () => {
         <ChatArea 
           messages={messages} 
           isLoading={isLoading} 
-          selectedModel={selectedModel}
-          onQuickPrompt={handleSendMessage}
+          onQuickPrompt={(text) => handleSendMessage(text)}
           onToggleBookmark={handleToggleBookmark}
           onUpdateBookmarkNote={handleUpdateBookmarkNote}
           onRetry={handleRetry}
-          onSwitchModelRetry={handleAutoSwitchModel}
           onOpenSettings={() => setShowApiKeyModal(true)}
         />
-        <InputArea onSendMessage={handleSendMessage} isLoading={isLoading} />
+        <InputArea onSendMessage={(text) => handleSendMessage(text)} isLoading={isLoading} />
       </main>
     </div>
   );
