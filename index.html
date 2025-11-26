@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    
+    <!-- Anti-Caching Headers -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    
+    <title>دستیار هوشمند بیمه دی</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;300;400;500;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind via CDN for simplicity (or can be built if configured in postcss) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Vazirmatn', 'sans-serif'],
+            },
+            colors: {
+              day: {
+                teal: '#008C95',
+                dark: '#005055',
+                light: '#B2EBF2',
+                accent: '#D81B60',
+                bg: '#F3F4F6'
+              }
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.3s ease-in-out',
+              'bounce-in': 'bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0', transform: 'translateY(-10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              },
+              bounceIn: {
+                '0%': { opacity: '0', transform: 'translate(-50%, 20px)' },
+                '100%': { opacity: '1', transform: 'translate(-50%, 0)' },
+              }
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      body {
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        touch-action: manipulation;
+        overscroll-behavior: none;
+      }
+      a { text-decoration: none; transition: all 0.2s ease; }
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+      @media print {
+        body * { visibility: hidden; }
+        #print-area, #print-area * { visibility: visible; }
+        #print-area { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 20px; background: white; color: black; }
+        ::-webkit-scrollbar { display: none; }
+        .no-print { display: none !important; }
+      }
+    </style>
+
+<link rel="stylesheet" href="/index.css">
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "pdfjs-dist": "https://aistudiocdn.com/pdfjs-dist@^5.4.394",
+    "mammoth": "https://aistudiocdn.com/mammoth@^1.11.0",
+    "react-markdown": "https://aistudiocdn.com/react-markdown@^10.1.0",
+    "docx": "https://aistudiocdn.com/docx@^9.5.1",
+    "file-saver": "https://aistudiocdn.com/file-saver@^2.0.5",
+    "vite": "https://aistudiocdn.com/vite@^7.2.4",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "fs": "https://aistudiocdn.com/fs@^0.0.1-security",
+    "path": "https://aistudiocdn.com/path@^0.12.7",
+    "url": "https://aistudiocdn.com/url@^0.11.4"
+  }
+}
+</script>
+  <script type="module" crossorigin src="/Bimeh-Day-AI-Assistant/assets/index-Dgl9t8aS.js"></script>
+</head>
+  <body class="bg-day-bg text-gray-800 font-sans antialiased h-[100dvh] overflow-hidden selection:bg-day-light selection:text-day-dark touch-pan-y touch-pinch-zoom">
+    <div id="root" class="h-full w-full"></div>
+  </body>
+</html>
