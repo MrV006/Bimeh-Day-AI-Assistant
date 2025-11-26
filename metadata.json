@@ -1,0 +1,5 @@
+{
+  "name": "Bimeh Day AI Assistant",
+  "description": "A ChatGPT-like assistant tailored for Day Insurance (Bimeh Day). It allows users to upload context (policies, documents) and ask specific questions in Persian regarding insurance coverage and terms.",
+  "requestFramePermissions": []
+}
