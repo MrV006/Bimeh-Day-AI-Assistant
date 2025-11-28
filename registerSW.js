@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Bimeh-Day-AI-Assistant/sw.js', { scope: '/Bimeh-Day-AI-Assistant/' })})}
